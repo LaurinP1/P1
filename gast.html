@@ -11,7 +11,8 @@
             box-sizing: border-box;
         }
 
-        html, body {
+        html,
+        body {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -22,6 +23,7 @@
             background: white;
             color: black;
             font-family: Arial, sans-serif;
+
             display: flex;
             justify-content: center;
             align-items: center;
@@ -30,6 +32,7 @@
         .box {
             width: 100%;
             text-align: center;
+            padding: 20px;
         }
 
         h1 {
@@ -41,10 +44,13 @@
             display: block;
             width: 100px;
             height: 70px;
+
             margin: 0 auto;
+
             font-size: 50px;
             text-align: center;
             text-transform: uppercase;
+
             border: 1px solid #ccc;
             border-radius: 10px;
         }
@@ -52,10 +58,14 @@
         button {
             display: block;
             margin: 20px auto 0;
+
             padding: 15px 30px;
+
             font-size: 18px;
+
             border: none;
             border-radius: 10px;
+
             cursor: pointer;
         }
 
@@ -73,13 +83,14 @@
         <h1>ANFANGSBUCHSTABE</h1>
 
         <input
+            id="buchstabenfeld"
             type="text"
             maxlength="1"
             autocomplete="off"
             autofocus
         >
 
-        <button>
+        <button id="sendenButton">
             Buchstaben hinzufügen
         </button>
 
@@ -90,30 +101,44 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co
+
+        const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
+
         const SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
+
 
         const supabaseClient = supabase.createClient(
             SUPABASE_URL,
             SUPABASE_KEY
         );
 
-        const feld = document.querySelector("input");
-        const button = document.querySelector("button");
-        const meldung = document.querySelector("#meldung");
+
+        const feld = document.getElementById("buchstabenfeld");
+
+        const button = document.getElementById("sendenButton");
+
+        const meldung = document.getElementById("meldung");
+
 
         button.addEventListener("click", async function () {
 
             const buchstabe = feld.value.trim().toUpperCase();
 
+
             if (buchstabe === "") {
-                meldung.textContent = "Bitte gib einen Buchstaben ein.";
+
+                meldung.textContent =
+                    "Bitte gib einen Buchstaben ein.";
+
                 return;
             }
 
-            meldung.textContent = "Wird gespeichert...";
 
-            const { error } = await supabaseClient
+            meldung.textContent =
+                "Wird gespeichert...";
+
+
+            const ergebnis = await supabaseClient
                 .from("Buchstaben")
                 .insert([
                     {
@@ -121,18 +146,31 @@
                     }
                 ]);
 
-            if (error) {
-                console.error("SUPABASE FEHLER:", error);
-                meldung.textContent = "Fehler beim Speichern.";
+
+            if (ergebnis.error) {
+
+                console.error(
+                    "SUPABASE FEHLER:",
+                    ergebnis.error
+                );
+
+                meldung.textContent =
+                    "Fehler beim Speichern.";
+
                 return;
             }
+
 
             meldung.textContent =
                 "Dein Buchstabe wurde hinzugefügt!";
 
+
             feld.value = "";
+
             feld.focus();
+
         });
+
     </script>
 
 </body>
