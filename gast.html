@@ -79,14 +79,13 @@
         <h1>ANFANGSBUCHSTABE</h1>
 
         <input
-            id="buchstabe"
             type="text"
             maxlength="1"
             autocomplete="off"
             autofocus
         >
 
-        <button id="sendenButton">
+        <button>
             Buchstaben hinzufügen
         </button>
 
@@ -102,31 +101,26 @@
         const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co/rest/v1/";
         const SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
 
-
         const supabaseClient = supabase.createClient(
             SUPABASE_URL,
             SUPABASE_KEY
         );
 
 
-        const feld = document.getElementById("buchstabe");
-        const button = document.getElementById("sendenButton");
-        const meldung = document.getElementById("meldung");
+        const feld = document.querySelector("input");
+        const button = document.querySelector("button");
+        const meldung = document.querySelector("#meldung");
 
 
         button.addEventListener("click", async function () {
 
             const buchstabe = feld.value.trim().toUpperCase();
 
-
             if (buchstabe === "") {
-
                 meldung.textContent =
                     "Bitte gib einen Buchstaben ein.";
-
                 return;
             }
-
 
             meldung.textContent =
                 "Wird gespeichert...";
@@ -143,7 +137,10 @@
 
             if (error) {
 
-                console.error("SUPABASE FEHLER:", error);
+                console.error(
+                    "SUPABASE FEHLER:",
+                    error
+                );
 
                 meldung.textContent =
                     "Fehler beim Speichern.";
@@ -154,7 +151,6 @@
 
             meldung.textContent =
                 "Dein Buchstabe wurde hinzugefügt!";
-
 
             feld.value = "";
             feld.focus();
