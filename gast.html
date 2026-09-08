@@ -1,92 +1,134 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>P1 – Dein Buchstabe</title>
-
-    <style>
-        html, body {
-            margin: 0;
-            width: 100%;
-            min-height: 100%;
-            background: black;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        .box {
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 28px;
-            margin-bottom: 30px;
-        }
-
-        input {
-            width: 100px;
-            height: 70px;
-            font-size: 50px;
-            text-align: center;
-            text-transform: uppercase;
-            border: none;
-            border-radius: 10px;
-        }
-
-        button {
-            display: block;
-            margin: 20px auto 0;
-            padding: 15px 30px;
-            font-size: 18px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-    </style>
+    <title>P1 – Dein Buchstabe</title>
 </head>
 
-<body>
+<body style="
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    color: black;
+    font-family: Arial, sans-serif;
+">
 
-    <div class="box">
+    <div style="
+        text-align: center;
+        width: 100%;
+    ">
 
-        <h1>Gib deinen Anfangsbuchstaben ein</h1>
+        <h1 style="
+            font-size: 32px;
+            margin: 0 0 30px 0;
+        ">
+            ANFANGSBUCHSTABE
+        </h1>
 
-        <input
-            id="buchstabe"
-            type="text"
-            maxlength="1"
-            autocomplete="off"
-            autofocus
-        >
+        <input
+            id="buchstabe"
+            type="text"
+            maxlength="1"
+            autocomplete="off"
+            autofocus
+            style="
+                width: 100px;
+                height: 70px;
+                font-size: 50px;
+                text-align: center;
+                text-transform: uppercase;
+                border: 1px solid #ccc;
+                border-radius: 10px;
+                box-sizing: border-box;
+            "
+        >
 
-        <button onclick="senden()">Buchstaben hinzufügen</button>
+        <button
+            onclick="senden()"
+            style="
+                display: block;
+                margin: 20px auto 0 auto;
+                padding: 15px 30px;
+                font-size: 18px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+            "
+        >
+            Buchstaben hinzufügen
+        </button>
 
-    </div>
+        <div
+            id="meldung"
+            style="
+                margin-top: 20px;
+                font-size: 18px;
+            "
+        ></div>
 
-    <script>
-        function senden() {
+    </div>
 
-            const feld = document.getElementById("buchstabe");
 
-            const buchstabe = feld.value.toUpperCase();
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-            if (buchstabe === "") {
-                alert("Bitte gib einen Buchstaben ein.");
-                return;
-            }
+    <script>
 
-            alert("Dein Buchstabe ist: " + buchstabe);
-        }
-    </script>
+        const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co/rest/v1/";
+
+        const SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
+
+
+        const supabaseClient = supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_KEY
+        );
+
+
+        async function senden() {
+
+            const feld = document.getElementById("buchstabe");
+            const meldung = document.getElementById("meldung");
+
+            const buchstabe = feld.value.toUpperCase();
+
+            if (buchstabe === "") {
+                meldung.textContent = "Bitte gib einen Buchstaben ein.";
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from("buchstaben")
+                .insert([
+                    {
+                        buchstabe: buchstabe
+                    }
+                ]);
+
+            if (error) {
+
+                console.error(error);
+
+                meldung.textContent =
+                    "Es ist ein Fehler aufgetreten.";
+
+                return;
+            }
+
+            meldung.textContent =
+                "Dein Buchstabe wurde hinzugefügt!";
+
+            feld.value = "";
+
+            feld.focus();
+        }
+
+    </script>
 
 </body>
 </html>
