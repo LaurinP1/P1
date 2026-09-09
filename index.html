@@ -39,7 +39,34 @@
             z-index: 20;
         }
 
-        .orbitPunkt {
+        #qrBereich {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 30;
+
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #qrBereich img {
+            width: 130px;
+            height: 130px;
+            display: block;
+        }
+
+        #qrBereich span {
+            margin-top: 6px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            color: #222;
+        }
             position: absolute;
             top: 50%;
             left: 50%;
@@ -127,6 +154,11 @@
     <div id="buchstabenSchicht"></div>
 
     <div id="flugSchicht"></div>
+
+    <div id="qrBereich">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=https%3A%2F%2Flaurinp1.github.io%2FP1%2Fgast.html" alt="QR-Code zur Gast-Seite">
+        <span>Scan mich</span>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
