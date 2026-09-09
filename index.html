@@ -10,10 +10,15 @@
             width: 100%;
             height: 100%;
             background: black;
+            overflow: hidden;
+        }
+
+        .mitte {
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
         }
 
         .P {
@@ -34,11 +39,31 @@
                 transform: perspective(800px) rotateY(360deg);
             }
         }
+
+        #buchstabenListe {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+
+            font-family: Arial, sans-serif;
+            font-size: 40px;
+            color: white;
+        }
     </style>
 </head>
 
 <body>
-    <div class="P">P</div>
+
+    <div class="mitte">
+        <div class="P">P</div>
+    </div>
+
+    <div id="buchstabenListe"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -49,13 +74,33 @@
 
         var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        var liste = document.getElementById("buchstabenListe");
+
+        function zeigeBuchstaben(buchstaben) {
+
+            liste.innerHTML = "";
+
+            for (var i = 0; i < buchstaben.length; i++) {
+                var span = document.createElement("span");
+                span.textContent = buchstaben[i].Buchstabe;
+                liste.appendChild(span);
+            }
+        }
+
         supabaseClient
             .from("Buchstaben")
             .select("*")
             .then(function (response) {
-                console.log("SUPABASE VERBINDUNG TEST:", response);
+
+                if (response.error) {
+                    console.error("SUPABASE FEHLER:", response.error);
+                    return;
+                }
+
+                zeigeBuchstaben(response.data);
             });
 
     </script>
+
 </body>
 </html>
