@@ -96,6 +96,27 @@
             -webkit-background-clip: text;
             filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7)) drop-shadow(0 0 40px rgba(255,255,255,0.6));
         }
+
+        .sternBlitz {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            pointer-events: none;
+            animation: sternAufblitzen 0.7s ease-out 1;
+        }
+
+        .sternBlitz svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.9));
+        }
+
+        @keyframes sternAufblitzen {
+            0%   { transform: translate(-50%, -50%) scale(0) rotate(0deg);   opacity: 0; }
+            35%  { transform: translate(-50%, -50%) scale(1.3) rotate(25deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(0.5) rotate(55deg); opacity: 0; }
+        }
     </style>
 </head>
 
@@ -329,9 +350,11 @@
             }
         }
 
-        // Ein neuer Buchstabe kommt live dazu: gross in der Mitte zeigen,
-        // kurz stehen lassen, dann in einer langsamen Spirale nach aussen
-        // zur Zielposition im Kreis fliegen lassen.
+        // Ein neuer Buchstabe kommt live dazu:
+        // 1) Ein glaenzender Fuenf-Stern blitzt oben links kurz auf.
+        // 2) Der Buchstabe erscheint dort und fliegt in einer langsamen
+        //    Schlangenlinie (wie eine Achterbahn) quer ueber den Bildschirm.
+        // 3) Am Ziel reiht er sich in den Kreis ein.
         function starteEinflug(eintrag) {
 
             var id = eintrag.id;
@@ -351,67 +374,101 @@
             var mitteX = window.innerWidth / 2;
             var mitteY = window.innerHeight / 2;
 
+            // Startpunkt oben links (mit etwas Abstand zum Rand, damit man ihn sieht)
+            var startX = window.innerWidth * 0.12;
+            var startY = window.innerHeight * 0.15;
+
+            var zielWinkelRad = daten.winkel * Math.PI / 180;
+            var zielX = mitteX + daten.radius * Math.cos(zielWinkelRad);
+            var zielY = mitteY + daten.radius * Math.sin(zielWinkelRad);
+
+            // Schritt 1: glaenzender Stern blitzt kurz am Startpunkt auf
+            var stern = document.createElement("div");
+            stern.className = "sternBlitz";
+            stern.style.left = startX + "px";
+            stern.style.top = startY + "px";
+            stern.innerHTML =
+                '<svg viewBox="0 0 100 100">' +
+                '<polygon points="50,5 61,39 98,39 68,60 79,95 50,73 21,95 32,60 2,39 39,39" fill="white"/>' +
+                '</svg>';
+            flugSchicht.appendChild(stern);
+
+            setTimeout(function () {
+                if (stern.parentNode) {
+                    flugSchicht.removeChild(stern);
+                }
+            }, 700);
+
+            // Schritt 2: der Buchstabe erscheint am Startpunkt
             var flugBuchstabe = document.createElement("div");
             flugBuchstabe.className = "fliegenderBuchstabe";
             flugBuchstabe.textContent = text;
 
-            flugBuchstabe.style.left = mitteX + "px";
-            flugBuchstabe.style.top = mitteY + "px";
+            flugBuchstabe.style.left = startX + "px";
+            flugBuchstabe.style.top = startY + "px";
             flugBuchstabe.style.fontSize = "0px";
 
             flugSchicht.appendChild(flugBuchstabe);
 
-            // Schritt 1: gross einblenden in der Mitte, damit man sieht:
-            // hier hat gerade jemand seinen Buchstaben eingetragen
             requestAnimationFrame(function () {
                 flugBuchstabe.style.transition = "font-size 0.4s ease-out";
-                flugBuchstabe.style.fontSize = "220px";
+                flugBuchstabe.style.fontSize = "90px";
             });
 
-            // Schritt 2: nach kurzem Stehenbleiben in einer langsamen Spirale
-            // nach aussen zur Zielposition im Kreis fliegen
+            // Schritt 3: nach kurzem Erscheinen langsam in einer Schlangenlinie
+            // (wie eine Achterbahn) zur Zielposition im Kreis fliegen
             setTimeout(function () {
 
-                var spiralDauerMs = 3500;      // Dauer der Spiralbewegung (langsam)
-                var vollDrehungen = 2.5;       // wie oft einmal komplett herumgewirbelt wird
+                var flugDauerMs = 4500;   // Dauer des Flugs (langsam, gut sichtbar)
+                var anzahlWellen = 3.5;   // wie oft die Linie hin und her schlaengelt
 
-                var zielWinkelDeg = daten.winkel;
-                var startWinkelDeg = zielWinkelDeg - (vollDrehungen * 360);
+                var deltaX = zielX - startX;
+                var deltaY = zielY - startY;
+                var streckenLaenge = Math.hypot(deltaX, deltaY);
+
+                // Richtung quer zur Flugbahn, fuer die Schlangenlinie
+                var senkrechtX = -deltaY / streckenLaenge;
+                var senkrechtY = deltaX / streckenLaenge;
+
+                var maxAuslenkung = Math.min(140, streckenLaenge * 0.18);
 
                 var startZeit = null;
 
-                flugBuchstabe.style.transition = "font-size " + (spiralDauerMs / 1000) + "s ease-in-out";
+                flugBuchstabe.style.transition = "font-size " + (flugDauerMs / 1000) + "s ease-in-out";
                 flugBuchstabe.style.fontSize = "70px";
 
-                function spiralSchritt(zeit) {
+                function schlangenSchritt(zeit) {
 
                     if (!startZeit) {
                         startZeit = zeit;
                     }
 
-                    var verlauf = Math.min((zeit - startZeit) / spiralDauerMs, 1);
-                    var eased = 1 - Math.pow(1 - verlauf, 3); // sanftes Ankommen am Ende
+                    var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
+                    var eased = 1 - Math.pow(1 - verlauf, 2); // sanftes Ankommen am Ende
 
-                    var aktuellerRadius = daten.radius * eased;
-                    var aktuellerWinkelDeg = startWinkelDeg + (zielWinkelDeg - startWinkelDeg) * eased;
-                    var winkelRad = aktuellerWinkelDeg * Math.PI / 180;
+                    var grundX = startX + deltaX * eased;
+                    var grundY = startY + deltaY * eased;
 
-                    var x = mitteX + aktuellerRadius * Math.cos(winkelRad);
-                    var y = mitteY + aktuellerRadius * Math.sin(winkelRad);
+                    // Auslenkung schwaecht sich zum Ende hin ab, damit er
+                    // exakt in der Zielposition landet
+                    var auslenkung = maxAuslenkung * (1 - eased) * Math.sin(verlauf * anzahlWellen * 2 * Math.PI);
+
+                    var x = grundX + senkrechtX * auslenkung;
+                    var y = grundY + senkrechtY * auslenkung;
 
                     flugBuchstabe.style.left = x + "px";
                     flugBuchstabe.style.top = y + "px";
 
                     if (verlauf < 1) {
-                        requestAnimationFrame(spiralSchritt);
+                        requestAnimationFrame(schlangenSchritt);
                     } else {
                         einflugFertig();
                     }
                 }
 
-                requestAnimationFrame(spiralSchritt);
+                requestAnimationFrame(schlangenSchritt);
 
-            }, 900);
+            }, 600);
 
             function einflugFertig() {
 
