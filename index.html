@@ -21,6 +21,24 @@
             height: 100%;
         }
 
+        #buchstabenSchicht {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #flugSchicht {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+
         .orbitPunkt {
             position: absolute;
             top: 50%;
@@ -60,15 +78,23 @@
             animation-iteration-count: infinite;
         }
 
-        @keyframes pulsAufleuchten {
-            0%   { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 0px rgba(255,255,255,0)); }
-            25%  { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 35px rgba(255,255,255,1)); }
-            100% { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 0px rgba(255,255,255,0)); }
-        }
-
         @keyframes drehenKlein {
             from { transform: translate(-50%, -50%) perspective(500px) rotateY(0deg); }
             to   { transform: translate(-50%, -50%) perspective(500px) rotateY(360deg); }
+        }
+
+        .fliegenderBuchstabe {
+            position: absolute;
+            transform: translate(-50%, -50%);
+
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+
+            color: transparent;
+            background: linear-gradient(180deg, #ffffff 0%, #cfcfcf 35%, #6e6e6e 52%, #a8a8a8 65%, #ffffff 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7)) drop-shadow(0 0 40px rgba(255,255,255,0.6));
         }
     </style>
 </head>
@@ -78,6 +104,8 @@
     <div id="dreiDBereich"></div>
 
     <div id="buchstabenSchicht"></div>
+
+    <div id="flugSchicht"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -115,7 +143,6 @@
         renderer.toneMappingExposure = 1.3;
         dreiDBereich.appendChild(renderer.domElement);
 
-        // Fertige "Raum-Umgebung" von three.js, damit das Chrome-Material etwas hat, das es spiegeln kann
         var pmrem = new THREE.PMREMGenerator(renderer);
         var umgebungsTextur = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
         szene.environment = umgebungsTextur;
@@ -137,7 +164,6 @@
                 modell = gltf.scene;
                 szene.add(modell);
 
-                // Modell automatisch zentrieren und passend skalieren
                 var box = new THREE.Box3().setFromObject(modell);
                 var groesse = new THREE.Vector3();
                 box.getSize(groesse);
@@ -181,7 +207,7 @@
 
         animiereDreiD();
 
-        // ================== TEIL 2: DIE KREISENDEN BUCHSTABEN ==================
+        // ================== TEIL 2: DIE BUCHSTABEN ==================
 
         var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
         var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
@@ -189,14 +215,16 @@
         var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         var schicht = document.getElementById("buchstabenSchicht");
+        var flugSchicht = document.getElementById("flugSchicht");
 
-        // Hier merken wir uns die Kreisbahn-Position jedes Buchstabens (nach id),
-        // damit er beim Neuzeichnen nicht auf eine andere Bahn springt.
-        var positionen = {};
+        var positionen = {};       // id -> Kreisbahn-Daten (Radius, Winkel, Geschwindigkeit ...)
+        var buchstabenText = {};   // id -> der eigentliche Buchstabe (Text)
+        var angekommen = {};       // id -> true, sobald er im Kreis mitfliegt
+        var flugAktiv = {};        // id -> true, waehrend der Einflug-Animation laeuft
 
-        var ERSTER_RADIUS = 320;    // Abstand des innersten Rings zur Mitte (Pixel)
-        var RADIUS_SCHRITT = 150;   // Abstand zwischen den Ringen (Pixel)
-        var BOGENABSTAND = 110;     // Mindestabstand zwischen Buchstaben auf einem Ring (Pixel)
+        var ERSTER_RADIUS = 320;
+        var RADIUS_SCHRITT = 150;
+        var BOGENABSTAND = 110;
 
         function zufallsZahl(min, max) {
             return Math.random() * (max - min) + min;
@@ -240,7 +268,7 @@
             };
         }
 
-        function erzeugeOrbitElement(text, daten, istNeu) {
+        function erzeugeOrbitElement(text, daten) {
 
             var traeger = document.createElement("div");
             traeger.className = "orbitPunkt";
@@ -258,11 +286,7 @@
             var buchstabe = document.createElement("div");
             buchstabe.className = "kleinerBuchstabe";
             buchstabe.textContent = text;
-
-            buchstabe.style.animation = daten.spinDauer + "s linear infinite drehenKlein";
-            if (istNeu) {
-                buchstabe.style.animation += ", pulsAufleuchten 1.4s ease-out 1";
-            }
+            buchstabe.style.animationDuration = daten.spinDauer + "s";
 
             abstand.appendChild(buchstabe);
             dreher.appendChild(abstand);
@@ -271,52 +295,128 @@
             return traeger;
         }
 
-        function zeigeBuchstaben(buchstabenListe) {
+        function renderOrbit() {
 
             schicht.innerHTML = "";
 
-            for (var i = 0; i < buchstabenListe.length; i++) {
+            for (var id in angekommen) {
+                if (angekommen[id]) {
+                    var element = erzeugeOrbitElement(buchstabenText[id], positionen[id]);
+                    schicht.appendChild(element);
+                }
+            }
+        }
 
-                var eintrag = buchstabenListe[i];
+        // Buchstaben, die beim ersten Laden der Seite schon vorhanden sind:
+        // direkt in den Kreis setzen, ohne die Gross-Einflug-Animation.
+        function platziereOhneEinflug(liste) {
+
+            for (var i = 0; i < liste.length; i++) {
+
+                var eintrag = liste[i];
                 var id = eintrag.id;
 
-                var istNeu = !positionen[id];
+                buchstabenText[id] = eintrag.Buchstabe;
 
-                if (istNeu) {
+                if (!positionen[id]) {
                     var naechsterIndex = Object.keys(positionen).length;
                     positionen[id] = erzeugePositionFuer(naechsterIndex);
                 }
 
-                var element = erzeugeOrbitElement(eintrag.Buchstabe, positionen[id], istNeu);
-                schicht.appendChild(element);
+                angekommen[id] = true;
             }
+
+            renderOrbit();
         }
 
-        function ladeAlleBuchstaben() {
-            supabaseClient
-                .from("Buchstaben")
-                .select("*")
-                .order("id", { ascending: true })
-                .then(function (response) {
+        // Ein neuer Buchstabe kommt live dazu: gross in der Mitte zeigen,
+        // kurz stehen lassen, dann zur Zielposition im Kreis fliegen lassen.
+        function starteEinflug(eintrag) {
 
-                    if (response.error) {
-                        console.error("SUPABASE FEHLER:", response.error);
-                        return;
-                    }
+            var id = eintrag.id;
+            var text = eintrag.Buchstabe;
 
-                    zeigeBuchstaben(response.data);
-                });
+            if (positionen[id] || flugAktiv[id]) {
+                return;
+            }
+
+            buchstabenText[id] = text;
+            flugAktiv[id] = true;
+
+            var naechsterIndex = Object.keys(positionen).length;
+            positionen[id] = erzeugePositionFuer(naechsterIndex);
+            var daten = positionen[id];
+
+            var mitteX = window.innerWidth / 2;
+            var mitteY = window.innerHeight / 2;
+
+            var winkelRad = daten.winkel * Math.PI / 180;
+            var zielX = mitteX + daten.radius * Math.cos(winkelRad);
+            var zielY = mitteY + daten.radius * Math.sin(winkelRad);
+
+            var flugBuchstabe = document.createElement("div");
+            flugBuchstabe.className = "fliegenderBuchstabe";
+            flugBuchstabe.textContent = text;
+
+            flugBuchstabe.style.left = mitteX + "px";
+            flugBuchstabe.style.top = mitteY + "px";
+            flugBuchstabe.style.fontSize = "0px";
+
+            flugSchicht.appendChild(flugBuchstabe);
+
+            // Schritt 1: gross einblenden in der Mitte
+            requestAnimationFrame(function () {
+                flugBuchstabe.style.transition = "font-size 0.4s ease-out";
+                flugBuchstabe.style.fontSize = "220px";
+            });
+
+            // Schritt 2: kurz stehen lassen, dann zur Zielposition fliegen
+            setTimeout(function () {
+                flugBuchstabe.style.transition =
+                    "left 1s ease-in-out, top 1s ease-in-out, font-size 1s ease-in-out";
+                flugBuchstabe.style.left = zielX + "px";
+                flugBuchstabe.style.top = zielY + "px";
+                flugBuchstabe.style.fontSize = "70px";
+            }, 900);
+
+            // Schritt 3: Einflug fertig, ab jetzt normal im Kreis mitdrehen
+            setTimeout(function () {
+
+                if (flugBuchstabe.parentNode) {
+                    flugSchicht.removeChild(flugBuchstabe);
+                }
+
+                flugAktiv[id] = false;
+                angekommen[id] = true;
+
+                renderOrbit();
+
+            }, 900 + 1000);
         }
 
-        ladeAlleBuchstaben();
+        // Erstes Laden: vorhandene Buchstaben direkt anzeigen
+        supabaseClient
+            .from("Buchstaben")
+            .select("*")
+            .order("id", { ascending: true })
+            .then(function (response) {
 
+                if (response.error) {
+                    console.error("SUPABASE FEHLER:", response.error);
+                    return;
+                }
+
+                platziereOhneEinflug(response.data);
+            });
+
+        // Neuer Buchstabe kommt live dazu: Einflug-Animation starten
         supabaseClient
             .channel("buchstaben-live")
             .on(
                 "postgres_changes",
                 { event: "INSERT", schema: "public", table: "Buchstaben" },
                 function (payload) {
-                    ladeAlleBuchstaben();
+                    starteEinflug(payload.new);
                 }
             )
             .subscribe();
