@@ -44,8 +44,29 @@
             to   { transform: perspective(800px) rotateY(360deg); }
         }
 
+        .orbitPunkt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+        }
+
+        .orbitDreher {
+            animation-name: orbitDrehung;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        @keyframes orbitDrehung {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+
         .kleinerBuchstabe {
             position: absolute;
+            left: 0;
+            top: 0;
 
             font-family: Arial, sans-serif;
             font-size: 70px;
@@ -58,8 +79,8 @@
         }
 
         @keyframes drehenKlein {
-            from { transform: perspective(500px) rotateY(0deg); }
-            to   { transform: perspective(500px) rotateY(360deg); }
+            from { transform: translate(-50%, -50%) perspective(500px) rotateY(0deg); }
+            to   { transform: translate(-50%, -50%) perspective(500px) rotateY(360deg); }
         }
     </style>
 </head>
@@ -85,117 +106,10 @@
 
         var schicht = document.getElementById("buchstabenSchicht");
 
+        // Hier merken wir uns die Kreisbahn-Position jedes Buchstabens (nach id),
+        // damit er beim Neuzeichnen nicht auf eine andere Bahn springt.
         var positionen = {};
 
-        var MINDEST_ABSTAND = 130;
-        var MINDEST_ABSTAND_MITTE = 220;
-
-        function zufallsZahl(min, max) {
-            return Math.random() * (max - min) + min;
-        }
-
-        function passtPosition(x, y, breite, hoehe) {
-
-            var mitteX = breite / 2;
-            var mitteY = hoehe / 2;
-
-            var abstandZurMitte = Math.hypot(x - mitteX, y - mitteY);
-            if (abstandZurMitte < MINDEST_ABSTAND_MITTE) {
-                return false;
-            }
-
-            for (var id in positionen) {
-                var vorhanden = positionen[id];
-                var abstand = Math.hypot(x - vorhanden.x, y - vorhanden.y);
-                if (abstand < MINDEST_ABSTAND) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        function findePosition(breite, hoehe) {
-
-            var versucheMax = 200;
-
-            for (var i = 0; i < versucheMax; i++) {
-
-                var x = zufallsZahl(60, breite - 60);
-                var y = zufallsZahl(60, hoehe - 60);
-
-                if (passtPosition(x, y, breite, hoehe)) {
-                    return { x: x, y: y };
-                }
-            }
-
-            return {
-                x: zufallsZahl(60, breite - 60),
-                y: zufallsZahl(60, hoehe - 60)
-            };
-        }
-
-        function zeigeBuchstaben(buchstabenListe) {
-
-            var breite = window.innerWidth;
-            var hoehe = window.innerHeight;
-
-            schicht.innerHTML = "";
-
-            for (var i = 0; i < buchstabenListe.length; i++) {
-
-                var eintrag = buchstabenListe[i];
-                var id = eintrag.id;
-
-                if (!positionen[id]) {
-                    positionen[id] = findePosition(breite, hoehe);
-                }
-
-                var pos = positionen[id];
-
-                var div = document.createElement("div");
-                div.className = "kleinerBuchstabe";
-                div.textContent = eintrag.Buchstabe;
-
-                div.style.left = pos.x + "px";
-                div.style.top = pos.y + "px";
-
-                var dauer = zufallsZahl(5, 10).toFixed(1);
-                div.style.animationDuration = dauer + "s";
-
-                schicht.appendChild(div);
-            }
-        }
-
-        function ladeAlleBuchstaben() {
-            supabaseClient
-                .from("Buchstaben")
-                .select("*")
-                .then(function (response) {
-
-                    if (response.error) {
-                        console.error("SUPABASE FEHLER:", response.error);
-                        return;
-                    }
-
-                    zeigeBuchstaben(response.data);
-                });
-        }
-
-        ladeAlleBuchstaben();
-
-        supabaseClient
-            .channel("buchstaben-live")
-            .on(
-                "postgres_changes",
-                { event: "INSERT", schema: "public", table: "Buchstaben" },
-                function (payload) {
-                    ladeAlleBuchstaben();
-                }
-            )
-            .subscribe();
-
-    </script>
-
-</body>
-</html>
+        var ERSTER_RADIUS = 220;    // Abstand des innersten Rings zur Mitte (Pixel)
+        var RADIUS_SCHRITT = 150;   // Abstand zwischen den Ringen (Pixel)
+        var BOGENABSTAND = 110;     //
