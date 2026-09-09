@@ -1,143 +1,128 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>P1 – Dein Buchstabe</title>
+    <title>P1 - Dein Buchstabe</title>
 
-    <style>
-        body {
-            margin: 0;
-            background: white;
-            color: black;
-            font-family: Arial, sans-serif;
+    <style>
+        body {
+            margin: 0;
+            background: white;
+            color: black;
+            font-family: Arial, sans-serif;
 
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
-            min-height: 100vh;
-            text-align: center;
-        }
+            min-height: 100vh;
+            text-align: center;
+        }
 
-        .box {
-            width: 100%;
-            max-width: 400px;
-            padding: 30px;
-        }
+        .box {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+        }
 
-        h1 {
-            font-size: 30px;
-            margin-bottom: 30px;
-        }
+        h1 {
+            font-size: 30px;
+            margin-bottom: 30px;
+        }
 
-        #buchstabenfeld {
-            width: 100px;
-            height: 70px;
-            font-size: 50px;
-            text-align: center;
-            text-transform: uppercase;
+        #buchstabenfeld {
+            width: 100px;
+            height: 70px;
+            font-size: 50px;
+            text-align: center;
+            text-transform: uppercase;
 
-            display: block;
-            margin: 0 auto;
+            display: block;
+            margin: 0 auto;
 
-            border: 1px solid #ccc;
-            border-radius: 10px;
-        }
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
 
-        #sendenButton {
-            margin-top: 20px;
-            padding: 15px 30px;
+        #sendenButton {
+            margin-top: 20px;
+            padding: 15px 30px;
 
-            font-size: 18px;
+            font-size: 18px;
 
-            border: none;
-            border-radius: 10px;
+            border: none;
+            border-radius: 10px;
 
-            cursor: pointer;
-        }
+            cursor: pointer;
+        }
 
-        #meldung {
-            margin-top: 20px;
-            font-size: 18px;
-        }
-    </style>
+        #meldung {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
 </head>
 
 <body>
 
-    <div class="box">
+    <div class="box">
 
-        <h1>ANFANGSBUCHSTABE</h1>
+        <h1>ANFANGSBUCHSTABE</h1>
 
-        <input
-            id="buchstabenfeld"
-            type="text"
-            maxlength="1"
-            autocomplete="off"
-        >
+        <input id="buchstabenfeld" type="text" maxlength="1" autocomplete="off">
 
-        <button id="sendenButton">
-            Buchstaben hinzufügen
-        </button>
+        <button id="sendenButton">Buchstaben hinzufuegen</button>
 
-        <div id="meldung"></div>
+        <div id="meldung"></div>
 
-    </div>
+    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script>
+    <script>
 
-        const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
+        var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
+        var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
 
-        const supabaseClient = supabase.createClient(
-            SUPABASE_URL,
-            SUPABASE_KEY
-        );
+        var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const feld = document.getElementById("buchstabenfeld");
-        const button = document.getElementById("sendenButton");
-        const meldung = document.getElementById("meldung");
+        var feld = document.getElementById("buchstabenfeld");
+        var button = document.getElementById("sendenButton");
+        var meldung = document.getElementById("meldung");
 
-        button.addEventListener("click", async function () {
+        button.addEventListener("click", function () {
 
-            const buchstabe = feld.value.trim().toUpperCase();
+            var buchstabe = feld.value.trim().toUpperCase();
 
-            if (buchstabe === "") {
-                meldung.textContent = "Bitte gib einen Buchstaben ein.";
-                return;
-            }
+            if (buchstabe === "") {
+                meldung.textContent = "Bitte gib einen Buchstaben ein.";
+                return;
+            }
 
-            meldung.textContent = "Wird gespeichert...";
+            meldung.textContent = "Wird gespeichert...";
 
-            const { error } = await supabaseClient
-                .from("Buchstaben")
-                .insert({
-                    Buchstabe: buchstabe
-                });
+            supabaseClient
+                .from("Buchstaben")
+                .insert({ Buchstabe: buchstabe })
+                .then(function (response) {
 
-            if (error) {
+                    if (response.error) {
+                        console.error("SUPABASE FEHLER:", response.error);
+                        meldung.textContent = "Fehler beim Speichern.";
+                        return;
+                    }
 
-                console.error("SUPABASE FEHLER:", error);
+                    meldung.textContent = "Dein Buchstabe wurde hinzugefuegt!";
+                    feld.value = "";
+                    feld.focus();
 
-                meldung.textContent =
-                    "Fehler beim Speichern.";
+                });
 
-                return;
-            }
+        });
 
-            meldung.textContent =
-                "Dein Buchstabe wurde hinzugefügt!";
-
-            feld.value = "";
-            feld.focus();
-
-        });
-
-    </script>
+    </script>
 
 </body>
 </html>
