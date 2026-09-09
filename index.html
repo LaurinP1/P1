@@ -13,35 +13,12 @@
             overflow: hidden;
         }
 
-        .buehne {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        .mitte {
-            position: absolute;
+        #dreiDBereich {
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .P {
-            font-family: Arial, sans-serif;
-            font-size: 300px;
-            font-weight: bold;
-            color: #d6d6d6;
-
-            animation: drehenGross 8s linear infinite;
-        }
-
-        @keyframes drehenGross {
-            from { transform: perspective(800px) rotateY(0deg); }
-            to   { transform: perspective(800px) rotateY(360deg); }
         }
 
         .orbitPunkt {
@@ -87,17 +64,113 @@
 
 <body>
 
-    <div class="buehne">
-        <div class="mitte">
-            <div class="P">P</div>
-        </div>
+    <div id="dreiDBereich"></div>
 
-        <div id="buchstabenSchicht"></div>
-    </div>
+    <div id="buchstabenSchicht"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from "three";
+        import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
+        import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/environments/RoomEnvironment.js";
+
+        // ================== TEIL 1: DAS 3D-CHROME-P ==================
+
+        var dreiDBereich = document.getElementById("dreiDBereich");
+
+        var szene = new THREE.Scene();
+
+        var kamera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        kamera.position.set(0, 0, 5);
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        dreiDBereich.appendChild(renderer.domElement);
+
+        // Fertige "Raum-Umgebung" von three.js, damit das Chrome-Material etwas hat, das es spiegeln kann
+        var pmrem = new THREE.PMREMGenerator(renderer);
+        var umgebungsTextur = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        szene.environment = umgebungsTextur;
+
+        var licht1 = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+        szene.add(licht1);
+
+        var licht2 = new THREE.DirectionalLight(0xffffff, 2);
+        licht2.position.set(3, 5, 4);
+        szene.add(licht2);
+
+        var lader = new GLTFLoader();
+        var modell = null;
+
+        lader.load(
+            "p-metallic.glb",
+            function (gltf) {
+
+                modell = gltf.scene;
+                szene.add(modell);
+
+                // Modell automatisch zentrieren und passend skalieren
+                var box = new THREE.Box3().setFromObject(modell);
+                var groesse = new THREE.Vector3();
+                box.getSize(groesse);
+                var mitte = new THREE.Vector3();
+                box.getCenter(mitte);
+
+                modell.position.sub(mitte);
+
+                var maxSeite = Math.max(groesse.x, groesse.y, groesse.z);
+                var skala = 2.5 / maxSeite;
+                modell.scale.setScalar(skala);
+
+                modell.traverse(function (kind) {
+                    if (kind.isMesh) {
+                        kind.material.roughness = 0.08;
+                        kind.material.envMapIntensity = 2.2;
+                    }
+                });
+            },
+            undefined,
+            function (fehler) {
+                console.error("FEHLER beim Laden von p-metallic.glb:", fehler);
+            }
+        );
+
+        window.addEventListener("resize", function () {
+            kamera.aspect = window.innerWidth / window.innerHeight;
+            kamera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animiereDreiD() {
+            requestAnimationFrame(animiereDreiD);
+
+            if (modell) {
+                modell.rotation.y += 0.008;
+            }
+
+            renderer.render(szene, kamera);
+        }
+
+        animiereDreiD();
+
+        // ================== TEIL 2: DIE KREISENDEN BUCHSTABEN ==================
 
         var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
         var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
@@ -112,4 +185,126 @@
 
         var ERSTER_RADIUS = 220;    // Abstand des innersten Rings zur Mitte (Pixel)
         var RADIUS_SCHRITT = 150;   // Abstand zwischen den Ringen (Pixel)
-        var BOGENABSTAND = 110;     //
+        var BOGENABSTAND = 110;     // Mindestabstand zwischen Buchstaben auf einem Ring (Pixel)
+
+        function zufallsZahl(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        function ringPosition(index) {
+
+            var radius = ERSTER_RADIUS;
+            var ringNummer = 0;
+            var restIndex = index;
+
+            while (true) {
+                var umfang = 2 * Math.PI * radius;
+                var platzAufRing = Math.max(6, Math.floor(umfang / BOGENABSTAND));
+
+                if (restIndex < platzAufRing) {
+                    var winkel = (360 / platzAufRing) * restIndex;
+                    return {
+                        radius: radius,
+                        winkel: winkel,
+                        ringNummer: ringNummer
+                    };
+                }
+
+                restIndex -= platzAufRing;
+                radius += RADIUS_SCHRITT;
+                ringNummer += 1;
+            }
+        }
+
+        function erzeugePositionFuer(index) {
+
+            var ring = ringPosition(index);
+
+            return {
+                radius: ring.radius,
+                winkel: ring.winkel,
+                orbitDauer: zufallsZahl(20, 35),
+                spinDauer: zufallsZahl(5, 10),
+                richtung: (ring.ringNummer % 2 === 0) ? "normal" : "reverse"
+            };
+        }
+
+        function erzeugeOrbitElement(text, daten) {
+
+            var traeger = document.createElement("div");
+            traeger.className = "orbitPunkt";
+            traeger.style.transform = "rotate(" + daten.winkel + "deg)";
+
+            var dreher = document.createElement("div");
+            dreher.className = "orbitPunkt orbitDreher";
+            dreher.style.animationDuration = daten.orbitDauer + "s";
+            dreher.style.animationDirection = daten.richtung;
+
+            var abstand = document.createElement("div");
+            abstand.className = "orbitPunkt";
+            abstand.style.transform = "translateX(" + daten.radius + "px)";
+
+            var buchstabe = document.createElement("div");
+            buchstabe.className = "kleinerBuchstabe";
+            buchstabe.textContent = text;
+            buchstabe.style.animationDuration = daten.spinDauer + "s";
+
+            abstand.appendChild(buchstabe);
+            dreher.appendChild(abstand);
+            traeger.appendChild(dreher);
+
+            return traeger;
+        }
+
+        function zeigeBuchstaben(buchstabenListe) {
+
+            schicht.innerHTML = "";
+
+            for (var i = 0; i < buchstabenListe.length; i++) {
+
+                var eintrag = buchstabenListe[i];
+                var id = eintrag.id;
+
+                if (!positionen[id]) {
+                    var naechsterIndex = Object.keys(positionen).length;
+                    positionen[id] = erzeugePositionFuer(naechsterIndex);
+                }
+
+                var element = erzeugeOrbitElement(eintrag.Buchstabe, positionen[id]);
+                schicht.appendChild(element);
+            }
+        }
+
+        function ladeAlleBuchstaben() {
+            supabaseClient
+                .from("Buchstaben")
+                .select("*")
+                .order("id", { ascending: true })
+                .then(function (response) {
+
+                    if (response.error) {
+                        console.error("SUPABASE FEHLER:", response.error);
+                        return;
+                    }
+
+                    zeigeBuchstaben(response.data);
+                });
+        }
+
+        ladeAlleBuchstaben();
+
+        supabaseClient
+            .channel("buchstaben-live")
+            .on(
+                "postgres_changes",
+                { event: "INSERT", schema: "public", table: "Buchstaben" },
+                function (payload) {
+                    ladeAlleBuchstaben();
+                }
+            )
+            .subscribe();
+
+    </script>
+
+</body>
+</html>
