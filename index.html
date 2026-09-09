@@ -295,16 +295,17 @@
             return traeger;
         }
 
-        function renderOrbit() {
+        var orbitElemente = {};    // id -> bereits im Kreis eingefuegtes Element
 
-            schicht.innerHTML = "";
+        function fuegeInOrbitEin(id) {
 
-            for (var id in angekommen) {
-                if (angekommen[id]) {
-                    var element = erzeugeOrbitElement(buchstabenText[id], positionen[id]);
-                    schicht.appendChild(element);
-                }
+            if (orbitElemente[id]) {
+                return; // ist schon drin, nicht doppelt einfuegen
             }
+
+            var element = erzeugeOrbitElement(buchstabenText[id], positionen[id]);
+            orbitElemente[id] = element;
+            schicht.appendChild(element);
         }
 
         // Buchstaben, die beim ersten Laden der Seite schon vorhanden sind:
@@ -324,13 +325,13 @@
                 }
 
                 angekommen[id] = true;
+                fuegeInOrbitEin(id);
             }
-
-            renderOrbit();
         }
 
         // Ein neuer Buchstabe kommt live dazu: gross in der Mitte zeigen,
-        // kurz stehen lassen, dann zur Zielposition im Kreis fliegen lassen.
+        // kurz stehen lassen, dann in einer langsamen Spirale nach aussen
+        // zur Zielposition im Kreis fliegen lassen.
         function starteEinflug(eintrag) {
 
             var id = eintrag.id;
@@ -350,10 +351,6 @@
             var mitteX = window.innerWidth / 2;
             var mitteY = window.innerHeight / 2;
 
-            var winkelRad = daten.winkel * Math.PI / 180;
-            var zielX = mitteX + daten.radius * Math.cos(winkelRad);
-            var zielY = mitteY + daten.radius * Math.sin(winkelRad);
-
             var flugBuchstabe = document.createElement("div");
             flugBuchstabe.className = "fliegenderBuchstabe";
             flugBuchstabe.textContent = text;
@@ -364,23 +361,59 @@
 
             flugSchicht.appendChild(flugBuchstabe);
 
-            // Schritt 1: gross einblenden in der Mitte
+            // Schritt 1: gross einblenden in der Mitte, damit man sieht:
+            // hier hat gerade jemand seinen Buchstaben eingetragen
             requestAnimationFrame(function () {
                 flugBuchstabe.style.transition = "font-size 0.4s ease-out";
                 flugBuchstabe.style.fontSize = "220px";
             });
 
-            // Schritt 2: kurz stehen lassen, dann zur Zielposition fliegen
+            // Schritt 2: nach kurzem Stehenbleiben in einer langsamen Spirale
+            // nach aussen zur Zielposition im Kreis fliegen
             setTimeout(function () {
-                flugBuchstabe.style.transition =
-                    "left 1s ease-in-out, top 1s ease-in-out, font-size 1s ease-in-out";
-                flugBuchstabe.style.left = zielX + "px";
-                flugBuchstabe.style.top = zielY + "px";
+
+                var spiralDauerMs = 3500;      // Dauer der Spiralbewegung (langsam)
+                var vollDrehungen = 2.5;       // wie oft einmal komplett herumgewirbelt wird
+
+                var zielWinkelDeg = daten.winkel;
+                var startWinkelDeg = zielWinkelDeg - (vollDrehungen * 360);
+
+                var startZeit = null;
+
+                flugBuchstabe.style.transition = "font-size " + (spiralDauerMs / 1000) + "s ease-in-out";
                 flugBuchstabe.style.fontSize = "70px";
+
+                function spiralSchritt(zeit) {
+
+                    if (!startZeit) {
+                        startZeit = zeit;
+                    }
+
+                    var verlauf = Math.min((zeit - startZeit) / spiralDauerMs, 1);
+                    var eased = 1 - Math.pow(1 - verlauf, 3); // sanftes Ankommen am Ende
+
+                    var aktuellerRadius = daten.radius * eased;
+                    var aktuellerWinkelDeg = startWinkelDeg + (zielWinkelDeg - startWinkelDeg) * eased;
+                    var winkelRad = aktuellerWinkelDeg * Math.PI / 180;
+
+                    var x = mitteX + aktuellerRadius * Math.cos(winkelRad);
+                    var y = mitteY + aktuellerRadius * Math.sin(winkelRad);
+
+                    flugBuchstabe.style.left = x + "px";
+                    flugBuchstabe.style.top = y + "px";
+
+                    if (verlauf < 1) {
+                        requestAnimationFrame(spiralSchritt);
+                    } else {
+                        einflugFertig();
+                    }
+                }
+
+                requestAnimationFrame(spiralSchritt);
+
             }, 900);
 
-            // Schritt 3: Einflug fertig, ab jetzt normal im Kreis mitdrehen
-            setTimeout(function () {
+            function einflugFertig() {
 
                 if (flugBuchstabe.parentNode) {
                     flugSchicht.removeChild(flugBuchstabe);
@@ -389,9 +422,8 @@
                 flugAktiv[id] = false;
                 angekommen[id] = true;
 
-                renderOrbit();
-
-            }, 900 + 1000);
+                fuegeInOrbitEin(id);
+            }
         }
 
         // Erstes Laden: vorhandene Buchstaben direkt anzeigen
