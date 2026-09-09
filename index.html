@@ -60,6 +60,12 @@
             animation-iteration-count: infinite;
         }
 
+        @keyframes pulsAufleuchten {
+            0%   { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 0px rgba(255,255,255,0)); }
+            25%  { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 35px rgba(255,255,255,1)); }
+            100% { filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)) drop-shadow(0 0 0px rgba(255,255,255,0)); }
+        }
+
         @keyframes drehenKlein {
             from { transform: translate(-50%, -50%) perspective(500px) rotateY(0deg); }
             to   { transform: translate(-50%, -50%) perspective(500px) rotateY(360deg); }
@@ -234,7 +240,7 @@
             };
         }
 
-        function erzeugeOrbitElement(text, daten) {
+        function erzeugeOrbitElement(text, daten, istNeu) {
 
             var traeger = document.createElement("div");
             traeger.className = "orbitPunkt";
@@ -252,7 +258,11 @@
             var buchstabe = document.createElement("div");
             buchstabe.className = "kleinerBuchstabe";
             buchstabe.textContent = text;
-            buchstabe.style.animationDuration = daten.spinDauer + "s";
+
+            buchstabe.style.animation = daten.spinDauer + "s linear infinite drehenKlein";
+            if (istNeu) {
+                buchstabe.style.animation += ", pulsAufleuchten 1.4s ease-out 1";
+            }
 
             abstand.appendChild(buchstabe);
             dreher.appendChild(abstand);
@@ -270,12 +280,14 @@
                 var eintrag = buchstabenListe[i];
                 var id = eintrag.id;
 
-                if (!positionen[id]) {
+                var istNeu = !positionen[id];
+
+                if (istNeu) {
                     var naechsterIndex = Object.keys(positionen).length;
                     positionen[id] = erzeugePositionFuer(naechsterIndex);
                 }
 
-                var element = erzeugeOrbitElement(eintrag.Buchstabe, positionen[id]);
+                var element = erzeugeOrbitElement(eintrag.Buchstabe, positionen[id], istNeu);
                 schicht.appendChild(element);
             }
         }
