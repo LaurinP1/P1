@@ -48,6 +48,7 @@
 
             display: flex;
             justify-content: center;
+            flex-wrap: wrap;
             gap: 20px;
 
             font-family: Arial, sans-serif;
@@ -87,18 +88,33 @@
             }
         }
 
+        function ladeAlleBuchstaben() {
+            supabaseClient
+                .from("Buchstaben")
+                .select("*")
+                .then(function (response) {
+
+                    if (response.error) {
+                        console.error("SUPABASE FEHLER:", response.error);
+                        return;
+                    }
+
+                    zeigeBuchstaben(response.data);
+                });
+        }
+
+        ladeAlleBuchstaben();
+
         supabaseClient
-            .from("Buchstaben")
-            .select("*")
-            .then(function (response) {
-
-                if (response.error) {
-                    console.error("SUPABASE FEHLER:", response.error);
-                    return;
+            .channel("buchstaben-live")
+            .on(
+                "postgres_changes",
+                { event: "INSERT", schema: "public", table: "Buchstaben" },
+                function (payload) {
+                    ladeAlleBuchstaben();
                 }
-
-                zeigeBuchstaben(response.data);
-            });
+            )
+            .subscribe();
 
     </script>
 
