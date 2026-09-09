@@ -48,7 +48,12 @@
             font-family: Arial, sans-serif;
             font-size: 70px;
             font-weight: bold;
-            color: #d6d6d6;
+
+            color: transparent;
+            background: linear-gradient(180deg, #ffffff 0%, #cfcfcf 35%, #6e6e6e 52%, #a8a8a8 65%, #ffffff 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6));
 
             animation-name: drehenKlein;
             animation-timing-function: linear;
@@ -136,7 +141,7 @@
                 modell.position.sub(mitte);
 
                 var maxSeite = Math.max(groesse.x, groesse.y, groesse.z);
-                var skala = 2.5 / maxSeite;
+                var skala = 1.9 / maxSeite;
                 modell.scale.setScalar(skala);
 
                 modell.traverse(function (kind) {
@@ -183,7 +188,7 @@
         // damit er beim Neuzeichnen nicht auf eine andere Bahn springt.
         var positionen = {};
 
-        var ERSTER_RADIUS = 220;    // Abstand des innersten Rings zur Mitte (Pixel)
+        var ERSTER_RADIUS = 320;    // Abstand des innersten Rings zur Mitte (Pixel)
         var RADIUS_SCHRITT = 150;   // Abstand zwischen den Ringen (Pixel)
         var BOGENABSTAND = 110;     // Mindestabstand zwischen Buchstaben auf einem Ring (Pixel)
 
