@@ -20,9 +20,7 @@
             font-family: Arial, sans-serif;
             font-size: 300px;
             font-weight: bold;
-            color: silver;
-
-            transform-style: preserve-3d;
+            color: #d6d6d6;
 
             animation: drehen 8s linear infinite;
         }
@@ -40,8 +38,24 @@
 </head>
 
 <body>
-
     <div class="P">P</div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+
+        var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
+        var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
+
+        var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        supabaseClient
+            .from("Buchstaben")
+            .select("*")
+            .then(function (response) {
+                console.log("SUPABASE VERBINDUNG TEST:", response);
+            });
+
+    </script>
 </body>
 </html>
