@@ -358,13 +358,14 @@
         function starteEinflug(eintrag) {
 
             var id = eintrag.id;
-            var text = eintrag.Buchstabe;
+            var vollerName = eintrag.Name || eintrag.Buchstabe;
+            var anfangsBuchstabe = eintrag.Buchstabe;
 
             if (positionen[id] || flugAktiv[id]) {
                 return;
             }
 
-            buchstabenText[id] = text;
+            buchstabenText[id] = anfangsBuchstabe;
             flugAktiv[id] = true;
 
             var naechsterIndex = Object.keys(positionen).length;
@@ -399,43 +400,42 @@
                 }
             }, 700);
 
-            // Schritt 2: der Buchstabe erscheint am Startpunkt
+            // Schritt 2: der volle Name erscheint am Startpunkt
             var flugBuchstabe = document.createElement("div");
             flugBuchstabe.className = "fliegenderBuchstabe";
-            flugBuchstabe.textContent = text;
+            flugBuchstabe.textContent = vollerName;
 
             flugBuchstabe.style.left = startX + "px";
             flugBuchstabe.style.top = startY + "px";
             flugBuchstabe.style.fontSize = "0px";
+            flugBuchstabe.style.opacity = "1";
 
             flugSchicht.appendChild(flugBuchstabe);
 
             requestAnimationFrame(function () {
                 flugBuchstabe.style.transition = "font-size 0.4s ease-out";
-                flugBuchstabe.style.fontSize = "90px";
+                flugBuchstabe.style.fontSize = "70px";
             });
 
             // Schritt 3: nach kurzem Erscheinen langsam in einer Schlangenlinie
-            // (wie eine Achterbahn) zur Zielposition im Kreis fliegen
+            // (wie eine Achterbahn) zur Zielposition im Kreis fliegen.
+            // Etwa auf halbem Weg verkuerzt sich der Name zum Anfangsbuchstaben.
             setTimeout(function () {
 
-                var flugDauerMs = 4500;   // Dauer des Flugs (langsam, gut sichtbar)
+                var flugDauerMs = 5000;   // Dauer des Flugs (langsam, gut sichtbar)
                 var anzahlWellen = 3.5;   // wie oft die Linie hin und her schlaengelt
 
                 var deltaX = zielX - startX;
                 var deltaY = zielY - startY;
                 var streckenLaenge = Math.hypot(deltaX, deltaY);
 
-                // Richtung quer zur Flugbahn, fuer die Schlangenlinie
                 var senkrechtX = -deltaY / streckenLaenge;
                 var senkrechtY = deltaX / streckenLaenge;
 
                 var maxAuslenkung = Math.min(140, streckenLaenge * 0.18);
 
                 var startZeit = null;
-
-                flugBuchstabe.style.transition = "font-size " + (flugDauerMs / 1000) + "s ease-in-out";
-                flugBuchstabe.style.fontSize = "70px";
+                var hatSichVerkuerzt = false;
 
                 function schlangenSchritt(zeit) {
 
@@ -449,8 +449,6 @@
                     var grundX = startX + deltaX * eased;
                     var grundY = startY + deltaY * eased;
 
-                    // Auslenkung schwaecht sich zum Ende hin ab, damit er
-                    // exakt in der Zielposition landet
                     var auslenkung = maxAuslenkung * (1 - eased) * Math.sin(verlauf * anzahlWellen * 2 * Math.PI);
 
                     var x = grundX + senkrechtX * auslenkung;
@@ -458,6 +456,22 @@
 
                     flugBuchstabe.style.left = x + "px";
                     flugBuchstabe.style.top = y + "px";
+
+                    // Auf halbem Weg: Name kurz ausblenden und als
+                    // Anfangsbuchstabe wieder einblenden
+                    if (!hatSichVerkuerzt && verlauf >= 0.5) {
+
+                        hatSichVerkuerzt = true;
+
+                        flugBuchstabe.style.transition = "opacity 0.18s ease-in-out, font-size 0.18s ease-in-out";
+                        flugBuchstabe.style.opacity = "0";
+
+                        setTimeout(function () {
+                            flugBuchstabe.textContent = anfangsBuchstabe;
+                            flugBuchstabe.style.fontSize = "70px";
+                            flugBuchstabe.style.opacity = "1";
+                        }, 180);
+                    }
 
                     if (verlauf < 1) {
                         requestAnimationFrame(schlangenSchritt);
@@ -468,7 +482,7 @@
 
                 requestAnimationFrame(schlangenSchritt);
 
-            }, 600);
+            }, 900);
 
             function einflugFertig() {
 
