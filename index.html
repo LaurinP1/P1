@@ -212,6 +212,7 @@
         var dreiDBereich = document.getElementById("dreiDBereich");
 
         var szene = new THREE.Scene();
+        szene.fog = new THREE.Fog(0x000000, 6, 45);
 
         var kamera = new THREE.PerspectiveCamera(
             45,
@@ -279,58 +280,19 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        var GRID_STUFEN = [
-            { anzahl: 1, spalten: 1, zeilen: 1 },
-            { anzahl: 2, spalten: 2, zeilen: 1 },
-            { anzahl: 4, spalten: 2, zeilen: 2 },
-            { anzahl: 8, spalten: 4, zeilen: 2 }
-        ];
-        var STUFEN_DAUER_SEK = 60;
-
-        function animiereDreiD(zeitMs) {
+        function animiereDreiD() {
             requestAnimationFrame(animiereDreiD);
 
             if (modell) {
                 modell.rotation.y += 0.008;
             }
 
-            var gesamtSekunden = (zeitMs || 0) / 1000;
-            var stufenIndex = Math.floor(gesamtSekunden / STUFEN_DAUER_SEK) % GRID_STUFEN.length;
-            var stufe = GRID_STUFEN[stufenIndex];
+            aktualisiereKopien();
 
-            var breite = renderer.domElement.width;
-            var hoehe = renderer.domElement.height;
-
-            var zellBreite = breite / stufe.spalten;
-            var zellHoehe = hoehe / stufe.zeilen;
-
-            kamera.aspect = zellBreite / zellHoehe;
-            kamera.updateProjectionMatrix();
-
-            // Zuerst den kompletten Bildschirm einmal leeren
-            renderer.setScissorTest(false);
-            renderer.setViewport(0, 0, breite, hoehe);
-            renderer.clear();
-
-            // Dann das P einmal pro Zelle im Raster zeichnen
-            renderer.setScissorTest(true);
-
-            for (var zeile = 0; zeile < stufe.zeilen; zeile++) {
-                for (var spalte = 0; spalte < stufe.spalten; spalte++) {
-
-                    var x = spalte * zellBreite;
-                    var y = hoehe - (zeile + 1) * zellHoehe; // WebGL zaehlt Y von unten
-
-                    renderer.setViewport(x, y, zellBreite, zellHoehe);
-                    renderer.setScissor(x, y, zellBreite, zellHoehe);
-                    renderer.render(szene, kamera);
-                }
-            }
-
-            renderer.setScissorTest(false);
+            renderer.render(szene, kamera);
         }
 
-        animiereDreiD(0);
+        animiereDreiD();
 
         // ================== TEIL 2: DIE BUCHSTABEN ==================
 
