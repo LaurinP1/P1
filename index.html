@@ -83,29 +83,37 @@
         }
 
         @keyframes schwebenA {
-            0%, 100% { transform: translate(0px, 0px); }
-            25%      { transform: translate(30px, -25px); }
-            50%      { transform: translate(-20px, 20px); }
-            75%      { transform: translate(-30px, -15px); }
+            0%   { transform: translate(0vw, 0vh); }
+            20%  { transform: translate(14vw, -10vh); }
+            40%  { transform: translate(-6vw, -16vh); }
+            60%  { transform: translate(-16vw, 6vh); }
+            80%  { transform: translate(6vw, 14vh); }
+            100% { transform: translate(0vw, 0vh); }
         }
 
         @keyframes schwebenB {
-            0%, 100% { transform: translate(0px, 0px); }
-            30%      { transform: translate(-25px, -20px); }
-            60%      { transform: translate(20px, 25px); }
+            0%   { transform: translate(0vw, 0vh); }
+            25%  { transform: translate(-15vw, 9vh); }
+            50%  { transform: translate(-4vw, -15vh); }
+            75%  { transform: translate(13vw, 11vh); }
+            100% { transform: translate(0vw, 0vh); }
         }
 
         @keyframes schwebenC {
-            0%, 100% { transform: translate(0px, 0px); }
-            20%      { transform: translate(20px, 15px); }
-            50%      { transform: translate(-15px, -25px); }
-            80%      { transform: translate(-25px, 10px); }
+            0%   { transform: translate(0vw, 0vh); }
+            20%  { transform: translate(10vw, 13vh); }
+            45%  { transform: translate(-12vw, 15vh); }
+            70%  { transform: translate(-14vw, -12vh); }
+            90%  { transform: translate(9vw, -14vh); }
+            100% { transform: translate(0vw, 0vh); }
         }
 
         @keyframes schwebenD {
-            0%, 100% { transform: translate(0px, 0px); }
-            40%      { transform: translate(-30px, 20px); }
-            70%      { transform: translate(15px, -20px); }
+            0%   { transform: translate(0vw, 0vh); }
+            30%  { transform: translate(-13vw, -13vh); }
+            55%  { transform: translate(12vw, -9vh); }
+            80%  { transform: translate(8vw, 15vh); }
+            100% { transform: translate(0vw, 0vh); }
         }
 
         .kleinerBuchstabe {
@@ -366,7 +374,7 @@
                 y: platz.y,
                 spinDauer: zufallsZahl(5, 10),
                 schwebeVariante: SCHWEBE_VARIANTEN[Math.floor(Math.random() * SCHWEBE_VARIANTEN.length)],
-                schwebeDauer: zufallsZahl(10, 22),
+                schwebeDauer: zufallsZahl(18, 35),
                 schwebeVerzoegerung: -zufallsZahl(0, 20) // negativer Start, damit nicht alle synchron schweben
             };
         }
@@ -396,6 +404,43 @@
         }
 
         var orbitElemente = {};    // id -> bereits im Kreis eingefuegtes Element
+        var letterWarteschlange = {}; // Buchstabe (z.B. "A") -> Liste von ids, in Reihenfolge des Erscheinens
+        var MAX_PRO_BUCHSTABE = 10;
+
+        function entferneBuchstabenElement(id) {
+
+            var element = orbitElemente[id];
+            if (!element) {
+                return;
+            }
+
+            element.style.transition = "opacity 1s ease-in, filter 1s ease-in";
+            element.style.opacity = "0";
+            element.style.filter = "blur(6px)";
+
+            setTimeout(function () {
+                if (element.parentNode) {
+                    schicht.removeChild(element);
+                }
+            }, 1000);
+
+            delete orbitElemente[id];
+            delete positionen[id];
+            delete angekommen[id];
+            delete buchstabenText[id];
+        }
+
+        function begrenzeAufMaximum(buchstabe) {
+
+            if (!letterWarteschlange[buchstabe]) {
+                letterWarteschlange[buchstabe] = [];
+            }
+
+            while (letterWarteschlange[buchstabe].length >= MAX_PRO_BUCHSTABE) {
+                var aeltesteId = letterWarteschlange[buchstabe].shift();
+                entferneBuchstabenElement(aeltesteId);
+            }
+        }
 
         function fuegeInOrbitEin(id) {
 
@@ -403,7 +448,12 @@
                 return; // ist schon drin, nicht doppelt einfuegen
             }
 
-            var element = erzeugeOrbitElement(buchstabenText[id], positionen[id]);
+            var buchstabe = buchstabenText[id];
+
+            begrenzeAufMaximum(buchstabe);
+            letterWarteschlange[buchstabe].push(id);
+
+            var element = erzeugeOrbitElement(buchstabe, positionen[id]);
             orbitElemente[id] = element;
             schicht.appendChild(element);
         }
