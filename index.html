@@ -356,6 +356,8 @@
                 return; // ist schon drin, nicht doppelt einfuegen
             }
 
+            console.log("Fuege ein - id:", id, "text:", buchstabenText[id], "daten:", JSON.stringify(positionen[id]));
+
             var element = erzeugeOrbitElement(buchstabenText[id], positionen[id]);
             orbitElemente[id] = element;
             schicht.appendChild(element);
