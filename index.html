@@ -238,7 +238,8 @@
         var RAUM_TIEFE_VORN = 1;      // z-Bereich vorne (naeher an der Kamera)
         var RAUM_TIEFE_HINTEN = -2.5; // z-Bereich hinten
         var SICHTFELD_SICHERHEIT = 0.6; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
-        var MINDEST_ABSTAND_ZENTRUM = 3.2;   // Abstand zum P in der Mitte (auf Bildschirmebene, x/y)
+        var ZENTRUM_SICHERHEIT_ANTEIL = 0.34; // Anteil des sichtbaren Bereichs an der jeweiligen Tiefe, der frei vom P bleiben muss
+        var ZENTRUM_PUFFER = 0.5; // zusaetzlicher fester Puffer, damit auch das sanfte Schweben nie ins P hineinreicht
         var MINDEST_ABSTAND_BUCHSTABEN = 1.8;
 
         function zufallsZahl(min, max) {
@@ -255,13 +256,21 @@
             return { halbeBreite: halbeBreite, halbeHoehe: halbeHoehe };
         }
 
+        // Wie weit ein Buchstabe an dieser Tiefe (z) mindestens von der Mitte
+        // (dem P) entfernt sein muss, damit es auf dem Bildschirm nie
+        // ueberschneidet - skaliert mit der Kamera-Perspektive.
+        function mindestAbstandZentrumBeiTiefe(z) {
+            var sichtbar = sichtbareGroesseBeiTiefe(z);
+            return sichtbar.halbeHoehe * ZENTRUM_SICHERHEIT_ANTEIL + ZENTRUM_PUFFER;
+        }
+
         function passtPosition3D(x, y, z, bisherige) {
 
             // Wichtig: nur x/y zaehlen (Bildschirmebene), nicht die Tiefe (z) -
             // sonst wuerde ein Punkt direkt hinter/vor dem P (x=0, y=0) faelschlich
             // als "weit genug entfernt" gelten, nur weil er in der Tiefe versetzt ist.
             var abstandZurMitte = Math.sqrt(x * x + y * y);
-            if (abstandZurMitte < MINDEST_ABSTAND_ZENTRUM) {
+            if (abstandZurMitte < mindestAbstandZentrumBeiTiefe(z)) {
                 return false;
             }
 
@@ -423,7 +432,21 @@
                 var dy = Math.cos(zeitSek * daten.schwebeGeschwindigkeit * 0.8 + daten.phaseY) * daten.schwebeAmplitude;
                 var dz = Math.sin(zeitSek * daten.schwebeGeschwindigkeit * 0.6 + daten.phaseZ) * daten.schwebeAmplitude * 0.5;
 
-                mesh.position.set(daten.x + dx, daten.y + dy, daten.z + dz);
+                var x = daten.x + dx;
+                var y = daten.y + dy;
+                var z = daten.z + dz;
+
+                // Laufende Sicherung: falls das Schweben den Buchstaben zu nah
+                // ans P bringen wuerde, sanft nach aussen schieben.
+                var mindestAbstand = mindestAbstandZentrumBeiTiefe(z);
+                var abstandZurMitte = Math.sqrt(x * x + y * y);
+                if (abstandZurMitte < mindestAbstand && abstandZurMitte > 0.0001) {
+                    var faktor = mindestAbstand / abstandZurMitte;
+                    x *= faktor;
+                    y *= faktor;
+                }
+
+                mesh.position.set(x, y, z);
                 mesh.rotation.y += daten.spinGeschwindigkeit;
             }
         }
