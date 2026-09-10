@@ -212,7 +212,7 @@
         var dreiDBereich = document.getElementById("dreiDBereich");
 
         var szene = new THREE.Scene();
-        szene.fog = new THREE.Fog(0x000000, 6, 45);
+        szene.fog = new THREE.Fog(0x000000, 6, 90);
 
         var kamera = new THREE.PerspectiveCamera(
             45,
@@ -282,9 +282,8 @@
 
         // ================== KOPIEN, DIE IN DIE TIEFE FLIEGEN ==================
 
-        var kopien = [];              // { mesh, zielZ }
+        var kopien = [];              // { mesh, zielX, zielZ }
         var GENERATIONEN_MAX = 10;    // maximale Anzahl an Kopien
-        var TIEFEN_SCHRITT = -4;      // wie weit jede weitere Kopie zurueckfliegt
         var naechsteGeneration = 1;
         var SPAWN_INTERVALL_MS = 10000; // zum Testen: alle 10 Sekunden (spaeter z.B. auf 60000 stellen)
 
@@ -298,9 +297,14 @@
             kopie.position.set(0, 0, 0);
             szene.add(kopie);
 
-            var zielZ = TIEFEN_SCHRITT * naechsteGeneration;
+            // Abwechselnd nach links/rechts, und mit jeder Generation
+            // weiter nach aussen UND weiter nach hinten - so ueberschneiden
+            // sich die Kopien nicht mehr.
+            var richtung = (naechsteGeneration % 2 === 0) ? 1 : -1;
+            var zielX = richtung * (3 + naechsteGeneration * 1.6);
+            var zielZ = -8 - naechsteGeneration * 6;
 
-            kopien.push({ mesh: kopie, zielZ: zielZ });
+            kopien.push({ mesh: kopie, zielX: zielX, zielZ: zielZ });
 
             naechsteGeneration += 1;
         }
@@ -310,6 +314,7 @@
         function aktualisiereKopien() {
             for (var i = 0; i < kopien.length; i++) {
                 var k = kopien[i];
+                k.mesh.position.x += (k.zielX - k.mesh.position.x) * 0.02;
                 k.mesh.position.z += (k.zielZ - k.mesh.position.z) * 0.02;
                 k.mesh.rotation.y += 0.008;
             }
