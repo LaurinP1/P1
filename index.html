@@ -238,7 +238,7 @@
         var RAUM_TIEFE_VORN = 1;      // z-Bereich vorne (naeher an der Kamera)
         var RAUM_TIEFE_HINTEN = -2.5; // z-Bereich hinten
         var SICHTFELD_SICHERHEIT = 0.6; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
-        var MINDEST_ABSTAND_ZENTRUM = 2.6;   // Abstand zum P in der Mitte
+        var MINDEST_ABSTAND_ZENTRUM = 3.2;   // Abstand zum P in der Mitte (auf Bildschirmebene, x/y)
         var MINDEST_ABSTAND_BUCHSTABEN = 1.8;
 
         function zufallsZahl(min, max) {
@@ -257,7 +257,10 @@
 
         function passtPosition3D(x, y, z, bisherige) {
 
-            var abstandZurMitte = Math.sqrt(x * x + y * y + z * z);
+            // Wichtig: nur x/y zaehlen (Bildschirmebene), nicht die Tiefe (z) -
+            // sonst wuerde ein Punkt direkt hinter/vor dem P (x=0, y=0) faelschlich
+            // als "weit genug entfernt" gelten, nur weil er in der Tiefe versetzt ist.
+            var abstandZurMitte = Math.sqrt(x * x + y * y);
             if (abstandZurMitte < MINDEST_ABSTAND_ZENTRUM) {
                 return false;
             }
@@ -380,7 +383,7 @@
             begrenzeAufMaximum(buchstabe);
             letterWarteschlange[buchstabe].push(id);
 
-            var mesh = erzeugeTextMesh(buchstabe, 0.9);
+            var mesh = erzeugeTextMesh(buchstabe, 0.7);
             var daten = positionen[id];
             mesh.position.set(daten.x, daten.y, daten.z);
 
@@ -517,22 +520,23 @@
 
                     gruppe.position.set(daten.x + schlingerX, daten.y + schlingerY, z);
                     gruppe.scale.setScalar(skala);
-                    gruppe.rotation.y += 0.02; // die ganze Gruppe dreht sich als ein Stueck
+                    // Bewusst KEINE Drehung waehrend des Anflugs, sonst ist der
+                    // Name beim Ankommen zufaellig spiegelverkehrt/unlesbar.
 
                     if (verlauf < 1) {
                         requestAnimationFrame(anflugSchritt);
                     } else {
                         gruppe.position.set(daten.x, daten.y, daten.z);
                         gruppe.scale.setScalar(1);
+                        gruppe.rotation.y = 0;
                         starteWartePhase();
                     }
                 }
 
                 requestAnimationFrame(anflugSchritt);
 
-                // Nach der Ankunft: nicht starr stehen bleiben, sondern sanft
-                // ein kleines Stueck in der Tiefe vor und zurueck pendeln,
-                // waehrend die Gruppe sich weiterdreht.
+                // Nach der Ankunft: bleibt lesbar (keine Drehung), pendelt
+                // aber sanft ein kleines Stueck in der Tiefe vor und zurueck.
                 var wartePhaseAktiv = false;
 
                 function starteWartePhase() {
@@ -553,7 +557,6 @@
 
                         var pendelZ = Math.sin(vergangeneSek * 1.1) * 0.35;
                         gruppe.position.z = daten.z + pendelZ;
-                        gruppe.rotation.y += 0.012;
 
                         requestAnimationFrame(pendeln);
                     }
