@@ -518,8 +518,15 @@
                 var gruppe = aufbau.gruppe;
                 var kinder = aufbau.kinder;
 
-                // Start: winzig und weit entfernt (in Richtung des Zielorts), kommt naeher
-                gruppe.position.set(daten.x, daten.y, daten.z - 55);
+                // Entlang der geraden Sichtlinie von der Kamera zur Zielposition anfliegen -
+                // so bleibt der Winkelabstand zum P (in der Bildschirmmitte) die ganze Zeit
+                // gleich gross, und der Name fliegt nie "hinter" dem P vorbei.
+                var kameraZ = kamera.position.z;
+                var zielDistanz = kameraZ - daten.z;
+                var richtungX = daten.x / zielDistanz;
+                var richtungY = daten.y / zielDistanz;
+                var zusatzDistanz = 55; // wie weit zusaetzlich "dahinter" gestartet wird
+
                 gruppe.scale.setScalar(0.03);
                 szene.add(gruppe);
 
@@ -534,14 +541,15 @@
                     var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
                     var eased = 1 - Math.pow(1 - verlauf, 3);
 
-                    var z = (daten.z - 55) + 55 * eased;
+                    var distanz = zielDistanz + zusatzDistanz * (1 - eased);
+                    var z = kameraZ - distanz;
                     var skala = 0.03 + (1 - 0.03) * eased;
 
-                    // sanfter Bogen/Schlingern waehrend des Anflugs, klingt zum Ende hin ab
+                    // sanftes Schlingern quer zur Sichtlinie, klingt zum Ende hin ab
                     var schlingerX = Math.sin(verlauf * Math.PI * 2) * 0.8 * (1 - eased);
                     var schlingerY = Math.cos(verlauf * Math.PI * 1.6) * 0.4 * (1 - eased);
 
-                    gruppe.position.set(daten.x + schlingerX, daten.y + schlingerY, z);
+                    gruppe.position.set(richtungX * distanz + schlingerX, richtungY * distanz + schlingerY, z);
                     gruppe.scale.setScalar(skala);
                     // Bewusst KEINE Drehung waehrend des Anflugs, sonst ist der
                     // Name beim Ankommen zufaellig spiegelverkehrt/unlesbar.
