@@ -90,44 +90,21 @@
             font-size: 18px;
         }
 
-        .wegfliegenderName {
+        #dreiDNameBereich {
             position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(1);
-
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-weight: bold;
-            font-size: 32px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            white-space: nowrap;
-
-            color: transparent;
-            background-image: linear-gradient(180deg, #ffffff 0%, #a8a8a8 18%, #1a1a1a 45%, #6e6e6e 62%, #ffffff 82%, #9c9c9c 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow:
-                1px 1px 0px rgba(255,255,255,0.5),
-                -1px -1px 0px rgba(0,0,0,0.6);
-
-            z-index: 50;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
-        }
-
-        .wegfliegenderName.waechst {
-            transform: translate(-50%, -50%) scale(1.7);
-        }
-
-        .wegfliegenderName.fliegt {
-            transform: translate(-50%, -260vh) scale(0.25);
-            opacity: 0;
+            z-index: 50;
         }
     </style>
 </head>
 
 <body>
+
+    <div id="dreiDNameBereich"></div>
 
     <div class="hintergrundName" style="top: 6%; left: 4%; font-size: 46px; transform: rotate(-8deg);">Hancii</div>
     <div class="hintergrundName" style="top: 26%; right: 4%; font-size: 40px; transform: rotate(6deg);">Jeroen</div>
@@ -149,7 +126,20 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+
+        import * as THREE from "three";
+        import { FontLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/FontLoader.js";
+        import { TextGeometry } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/geometries/TextGeometry.js";
+        import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/environments/RoomEnvironment.js";
 
         var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
         var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
@@ -159,6 +149,152 @@
         var feld = document.getElementById("namensfeld");
         var button = document.getElementById("sendenButton");
         var meldung = document.getElementById("meldung");
+
+        // ---- Gleiche 3D-Technik wie auf der Hauptseite: exakt dieselben Buchstaben ----
+
+        var dreiDBereich = document.getElementById("dreiDNameBereich");
+
+        var szene = new THREE.Scene();
+
+        var kamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        kamera.position.set(0, 0, 6);
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        dreiDBereich.appendChild(renderer.domElement);
+
+        var pmrem = new THREE.PMREMGenerator(renderer);
+        szene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        var licht1 = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+        szene.add(licht1);
+
+        var licht2 = new THREE.DirectionalLight(0xffffff, 2);
+        licht2.position.set(3, 5, 4);
+        szene.add(licht2);
+
+        var chromeMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x6b6262,
+            metalness: 1,
+            roughness: 0.08,
+            envMapIntensity: 2.2
+        });
+
+        var schriftart = null;
+
+        var fontLader = new FontLoader();
+        fontLader.load(
+            "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/fonts/helvetiker_bold.typeface.json",
+            function (geladeneSchrift) {
+                schriftart = geladeneSchrift;
+            },
+            undefined,
+            function (fehler) {
+                console.error("FEHLER beim Laden der 3D-Schriftart:", fehler);
+            }
+        );
+
+        window.addEventListener("resize", function () {
+            kamera.aspect = window.innerWidth / window.innerHeight;
+            kamera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        var aktivesMesh = null;
+
+        function animieren() {
+            requestAnimationFrame(animieren);
+            renderer.render(szene, kamera);
+        }
+        animieren();
+
+        function zeigeWegfliegendenNamen(text) {
+
+            if (!schriftart) {
+                return; // Schriftart noch nicht bereit, dann eben ohne Animation
+            }
+
+            var geometrie = new TextGeometry(text.toUpperCase(), {
+                font: schriftart,
+                size: 0.55,
+                height: 0.14,
+                curveSegments: 8,
+                bevelEnabled: true,
+                bevelThickness: 0.02,
+                bevelSize: 0.015,
+                bevelSegments: 4
+            });
+            geometrie.center();
+
+            // Material-Zustand zuruecksetzen (das Material wird zwischen
+            // aufeinanderfolgenden Namen wiederverwendet)
+            chromeMaterial.opacity = 1;
+            chromeMaterial.transparent = false;
+
+            var mesh = new THREE.Mesh(geometrie, chromeMaterial);
+            mesh.position.set(0, 0, 0);
+            mesh.scale.setScalar(0.001);
+            szene.add(mesh);
+            aktivesMesh = mesh;
+
+            // Phase 1: langsam waechst der Name
+            var wachstumDauer = 800;
+            var wachstumStart = null;
+
+            function wachsen(zeit) {
+                if (!wachstumStart) {
+                    wachstumStart = zeit;
+                }
+                var verlauf = Math.min((zeit - wachstumStart) / wachstumDauer, 1);
+                var eased = verlauf * verlauf;
+                var skala = 0.001 + (1.1 - 0.001) * eased;
+                mesh.scale.setScalar(skala);
+                mesh.rotation.y = (1 - verlauf) * 0.3;
+
+                if (verlauf < 1) {
+                    requestAnimationFrame(wachsen);
+                } else {
+                    fliegtWeg();
+                }
+            }
+            requestAnimationFrame(wachsen);
+
+            // Phase 2: fliegt los - am Ende immer schneller, Richtung "Leinwand" (nach oben, weg)
+            function fliegtWeg() {
+
+                var flugDauer = 1300;
+                var flugStart = null;
+
+                function schritt(zeit) {
+                    if (!flugStart) {
+                        flugStart = zeit;
+                    }
+                    var verlauf = Math.min((zeit - flugStart) / flugDauer, 1);
+                    var eased = verlauf * verlauf * verlauf; // langsam los, dann immer schneller
+
+                    mesh.position.y = eased * 9;
+                    mesh.position.z = eased * -6;
+                    var skala = 1.1 * (1 - eased * 0.85);
+                    mesh.scale.setScalar(Math.max(skala, 0.01));
+                    mesh.material.opacity = 1 - eased;
+
+                    if (verlauf < 1) {
+                        requestAnimationFrame(schritt);
+                    } else {
+                        szene.remove(mesh);
+                        if (aktivesMesh === mesh) {
+                            aktivesMesh = null;
+                        }
+                    }
+                }
+                mesh.material.transparent = true;
+                requestAnimationFrame(schritt);
+            }
+        }
+
+        // ---- Formular-Logik ----
 
         button.addEventListener("click", function () {
 
@@ -189,31 +325,7 @@
 
                     meldung.textContent = "Dein Name wurde hinzugefuegt!";
 
-                    // Der Name waechst erst langsam, dann fliegt er los - am Ende immer schneller
-                    var fliegenderName = document.createElement("div");
-                    fliegenderName.className = "wegfliegenderName";
-                    fliegenderName.textContent = name;
-                    document.body.appendChild(fliegenderName);
-
-                    requestAnimationFrame(function () {
-                        requestAnimationFrame(function () {
-                            fliegenderName.style.transition = "transform 0.8s ease-out";
-                            fliegenderName.classList.add("waechst");
-                        });
-                    });
-
-                    setTimeout(function () {
-                        fliegenderName.style.transition =
-                            "transform 1.3s cubic-bezier(0.5, 0, 1, 0.4), opacity 1.3s cubic-bezier(0.5, 0, 1, 0.4)";
-                        fliegenderName.classList.remove("waechst");
-                        fliegenderName.classList.add("fliegt");
-                    }, 800);
-
-                    setTimeout(function () {
-                        if (fliegenderName.parentNode) {
-                            document.body.removeChild(fliegenderName);
-                        }
-                    }, 2200);
+                    zeigeWegfliegendenNamen(name);
 
                     feld.value = "";
                     feld.focus();
@@ -226,3 +338,4 @@
 
 </body>
 </html>
+
