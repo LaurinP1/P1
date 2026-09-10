@@ -21,16 +21,6 @@
             height: 100%;
         }
 
-        #flugSchicht {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 20;
-        }
-
         #qrBereich {
             position: fixed;
             bottom: 25px;
@@ -59,35 +49,12 @@
             font-weight: bold;
             color: #222;
         }
-
-        .sternBlitz {
-            position: absolute;
-            width: 90px;
-            height: 90px;
-            pointer-events: none;
-            animation: sternAufblitzen 0.7s ease-out 1;
-        }
-
-        .sternBlitz svg {
-            width: 100%;
-            height: 100%;
-            display: block;
-            filter: drop-shadow(0 0 15px rgba(255,255,255,0.9));
-        }
-
-        @keyframes sternAufblitzen {
-            0%   { transform: translate(-50%, -50%) scale(0) rotate(0deg);   opacity: 0; }
-            35%  { transform: translate(-50%, -50%) scale(1.3) rotate(25deg); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(0.5) rotate(55deg); opacity: 0; }
-        }
     </style>
 </head>
 
 <body>
 
     <div id="dreiDBereich"></div>
-
-    <div id="flugSchicht"></div>
 
     <div id="qrBereich">
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=https%3A%2F%2Flaurinp1.github.io%2FP1%2Fgast.html" alt="QR-Code zur Gast-Seite">
@@ -207,7 +174,7 @@
 
         var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        var flugSchicht = document.getElementById("flugSchicht"); // fuer den Stern-Sparkle-Effekt (bleibt flaches HTML)
+        // (kein flugSchicht mehr noetig - alles passiert jetzt in 3D)
 
         var chromeMaterialBuchstaben = new THREE.MeshPhysicalMaterial({
             color: 0x6b6262,
@@ -448,6 +415,45 @@
 
         // ---- Der grosse Name-Einflug ----
 
+        // Baut eine Gruppe aus einzelnen 3D-Buchstaben-Meshes fuer ein Wort,
+        // nebeneinander angeordnet und zentriert.
+        function erzeugeNameGruppe(text, buchstabenGroesse) {
+
+            var gruppe = new THREE.Group();
+            var kinder = [];
+            var luecke = buchstabenGroesse * 0.18;
+
+            var breiten = [];
+            var gesamtBreite = 0;
+
+            for (var i = 0; i < text.length; i++) {
+                var zeichen = text[i] === " " ? " " : text[i];
+                var mesh = erzeugeTextMesh(zeichen === " " ? "-" : zeichen, buchstabenGroesse);
+                if (zeichen === " ") {
+                    mesh.visible = false;
+                }
+                mesh.geometry.computeBoundingBox();
+                var breite = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x;
+                breiten.push(breite);
+                gesamtBreite += breite + (i < text.length - 1 ? luecke : 0);
+
+                kinder.push(mesh);
+            }
+
+            var x = -gesamtBreite / 2;
+
+            for (var j = 0; j < kinder.length; j++) {
+                var b = breiten[j];
+                kinder[j].position.x = x + b / 2;
+                x += b + luecke;
+
+                kinder[j].userData.eigenSpin = zufallsZahl(0.01, 0.022);
+                gruppe.add(kinder[j]);
+            }
+
+            return { gruppe: gruppe, kinder: kinder };
+        }
+
         function starteEinflug(eintrag) {
 
             var id = eintrag.id;
@@ -466,134 +472,124 @@
                 positionen[id] = erzeugePositionFuer();
                 var daten = positionen[id];
 
-                // Startpunkt oben links im 3D-Raum (nah an der Kamera, gut sichtbar)
-                var startX = -5.5;
-                var startY = 2.6;
-                var startZ = 2.5;
+                // Der Name-Buchstaben-Verbund, ausgehend vom eigentlichen Anfangsbuchstaben
+                var nameOhneRest = vollerName.charAt(0) === anfangsBuchstabe.toLowerCase()
+                    ? anfangsBuchstabe + vollerName.slice(1)
+                    : vollerName;
 
-                // --- Stern-Sparkle: bleibt ein flaches HTML-Element oben auf dem Bildschirm ---
-                var sternX = window.innerWidth * 0.12;
-                var sternY = window.innerHeight * 0.15;
+                var aufbau = erzeugeNameGruppe(nameOhneRest, 0.9);
+                var gruppe = aufbau.gruppe;
+                var kinder = aufbau.kinder;
 
-                var stern = document.createElement("div");
-                stern.className = "sternBlitz";
-                stern.style.left = sternX + "px";
-                stern.style.top = sternY + "px";
-                stern.innerHTML =
-                    '<svg viewBox="0 0 100 100">' +
-                    '<polygon points="50,5 61,39 98,39 68,60 79,95 50,73 21,95 32,60 2,39 39,39" fill="white"/>' +
-                    '</svg>';
-                flugSchicht.appendChild(stern);
+                // Start: winzig und weit entfernt (in Richtung des Zielorts), kommt naeher
+                gruppe.position.set(daten.x, daten.y, daten.z - 55);
+                gruppe.scale.setScalar(0.03);
+                szene.add(gruppe);
 
-                setTimeout(function () {
-                    if (stern.parentNode) {
-                        flugSchicht.removeChild(stern);
+                var flugDauerMs = 3200;
+                var startZeit = null;
+
+                function eigenDrehungAnwenden() {
+                    for (var i = 0; i < kinder.length; i++) {
+                        kinder[i].rotation.y += kinder[i].userData.eigenSpin;
                     }
-                }, 700);
+                }
 
-                // --- Der volle Name erscheint als 3D-Text am Startpunkt ---
-                var nameMesh = erzeugeTextMesh(vollerName, 0.01); // erstmal winzig, waechst gleich
-                nameMesh.position.set(startX, startY, startZ);
-                szene.add(nameMesh);
+                function anflugSchritt(zeit) {
 
-                var wachstumStart = null;
-                var wachstumDauer = 550;
-
-                setTimeout(function () {
-
-                    function wachsen(zeit) {
-                        if (!wachstumStart) {
-                            wachstumStart = zeit;
-                        }
-                        var verlauf = Math.min((zeit - wachstumStart) / wachstumDauer, 1);
-                        // leichter Ueberschwung (Pop-Effekt), simpel gehalten
-                        var ueberschwung = 1 + 0.15 * Math.sin(verlauf * Math.PI);
-                        var skala = verlauf * ueberschwung;
-
-                        nameMesh.scale.setScalar(Math.max(skala, 0.0001));
-
-                        if (verlauf < 1) {
-                            requestAnimationFrame(wachsen);
-                        } else {
-                            starteFlugPhase();
-                        }
+                    if (!startZeit) {
+                        startZeit = zeit;
                     }
-                    requestAnimationFrame(wachsen);
+                    var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
+                    var eased = 1 - Math.pow(1 - verlauf, 3);
 
-                }, 250);
+                    var z = (daten.z - 55) + 55 * eased;
+                    var skala = 0.03 + (1 - 0.03) * eased;
 
-                function starteFlugPhase() {
+                    // sanfter Bogen/Schlingern waehrend des Anflugs, klingt zum Ende hin ab
+                    var schlingerX = Math.sin(verlauf * Math.PI * 2) * 1.4 * (1 - eased);
+                    var schlingerY = Math.cos(verlauf * Math.PI * 1.6) * 0.7 * (1 - eased);
 
-                    var flugDauerMs = 5000;
-                    var hatSichVerkuerzt = false;
-                    var aktuellesMesh = nameMesh;
+                    gruppe.position.set(daten.x + schlingerX, daten.y + schlingerY, z);
+                    gruppe.scale.setScalar(skala);
 
-                    var startZeit = null;
+                    eigenDrehungAnwenden();
+
+                    if (verlauf < 1) {
+                        requestAnimationFrame(anflugSchritt);
+                    } else {
+                        gruppe.position.set(daten.x, daten.y, daten.z);
+                        gruppe.scale.setScalar(1);
+                        setTimeout(starteAufloesen, 500);
+                    }
+                }
+
+                requestAnimationFrame(anflugSchritt);
+
+                function starteAufloesen() {
+
+                    var zumAufloesen = kinder.slice(1); // alle ausser dem ersten Buchstaben bleiben nicht
+                    var verzoegerungProBuchstabe = 220;
+                    var aufloeseDauer = 500;
+                    var nochOffen = zumAufloesen.length;
+
+                    if (nochOffen === 0) {
+                        alleWegAusserErster();
+                        return;
+                    }
+
+                    for (var i = 0; i < zumAufloesen.length; i++) {
+                        (function (mesh, verzoegerung) {
+                            setTimeout(function () {
+                                loeseMeshAuf(mesh, aufloeseDauer, function () {
+                                    nochOffen -= 1;
+                                    if (nochOffen === 0) {
+                                        alleWegAusserErster();
+                                    }
+                                });
+                            }, verzoegerung);
+                        })(zumAufloesen[i], i * verzoegerungProBuchstabe);
+                    }
+                }
+
+                function loeseMeshAuf(mesh, dauer, callback) {
+
+                    var startZeitAufloesen = null;
 
                     function schritt(zeit) {
-
-                        if (!startZeit) {
-                            startZeit = zeit;
+                        if (!startZeitAufloesen) {
+                            startZeitAufloesen = zeit;
                         }
-                        var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
-                        var eased = 1 - Math.pow(1 - verlauf, 2);
-
-                        var x = startX + (daten.x - startX) * eased;
-                        var y = startY + (daten.y - startY) * eased;
-                        var z = startZ + (daten.z - startZ) * eased;
-
-                        // sanftes Schwenken quer zur Flugrichtung, statt schnurgerade
-                        var schwenk = Math.sin(verlauf * Math.PI * 2.5) * 1.1 * (1 - eased);
-
-                        // leichte Groessenvariation waehrend des Flugs
-                        var groessenPuls = 1 + 0.12 * Math.sin(verlauf * Math.PI * 3);
-
-                        aktuellesMesh.position.set(x + schwenk, y, z);
-                        aktuellesMesh.rotation.y += 0.02;
-                        aktuellesMesh.scale.setScalar(groessenPuls);
-
-                        // Etwa auf halbem Weg: Name verschwindet, Anfangsbuchstabe erscheint
-                        if (!hatSichVerkuerzt && verlauf >= 0.5) {
-
-                            hatSichVerkuerzt = true;
-
-                            szene.remove(aktuellesMesh);
-
-                            var buchstabenMesh = erzeugeTextMesh(anfangsBuchstabe, 0.7);
-                            buchstabenMesh.position.copy(aktuellesMesh.position);
-                            szene.add(buchstabenMesh);
-
-                            aktuellesMesh = buchstabenMesh;
-                        }
+                        var verlauf = Math.min((zeit - startZeitAufloesen) / dauer, 1);
+                        mesh.scale.setScalar(Math.max(1 - verlauf, 0.0001));
 
                         if (verlauf < 1) {
                             requestAnimationFrame(schritt);
                         } else {
-                            fertig();
+                            gruppe.remove(mesh);
+                            if (callback) {
+                                callback();
+                            }
                         }
                     }
-
-                    function fertig() {
-
-                        if (aktuellesMesh) {
-                            szene.remove(aktuellesMesh);
-                        }
-
-                        flugAktiv[id] = false;
-                        angekommen[id] = true;
-
-                        fuegeInSzeneEin(id);
-                    }
-
                     requestAnimationFrame(schritt);
-
-                    // Sicherheitsnetz: falls irgendwas haengen bleibt, trotzdem fertig machen
-                    setTimeout(function () {
-                        if (flugAktiv[id]) {
-                            fertig();
-                        }
-                    }, flugDauerMs + 2000);
                 }
+
+                function alleWegAusserErster() {
+                    szene.remove(gruppe);
+
+                    flugAktiv[id] = false;
+                    angekommen[id] = true;
+
+                    fuegeInSzeneEin(id);
+                }
+
+                // Sicherheitsnetz: falls irgendwas haengen bleibt, trotzdem fertig machen
+                setTimeout(function () {
+                    if (flugAktiv[id]) {
+                        alleWegAusserErster();
+                    }
+                }, flugDauerMs + 500 + kinder.length * 220 + 500 + 2000);
             });
         }
 
