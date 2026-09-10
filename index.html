@@ -68,23 +68,44 @@
             color: #222;
         }
 
-        .orbitPunkt {
+        .schwebePlatz {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 0;
+            left: 0;
             width: 0;
             height: 0;
         }
 
-        .orbitDreher {
-            animation-name: orbitDrehung;
-            animation-timing-function: linear;
+        .schwebend {
+            position: relative;
+            animation-timing-function: ease-in-out;
             animation-iteration-count: infinite;
         }
 
-        @keyframes orbitDrehung {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
+        @keyframes schwebenA {
+            0%, 100% { transform: translate(0px, 0px); }
+            25%      { transform: translate(30px, -25px); }
+            50%      { transform: translate(-20px, 20px); }
+            75%      { transform: translate(-30px, -15px); }
+        }
+
+        @keyframes schwebenB {
+            0%, 100% { transform: translate(0px, 0px); }
+            30%      { transform: translate(-25px, -20px); }
+            60%      { transform: translate(20px, 25px); }
+        }
+
+        @keyframes schwebenC {
+            0%, 100% { transform: translate(0px, 0px); }
+            20%      { transform: translate(20px, 15px); }
+            50%      { transform: translate(-15px, -25px); }
+            80%      { transform: translate(-25px, 10px); }
+        }
+
+        @keyframes schwebenD {
+            0%, 100% { transform: translate(0px, 0px); }
+            40%      { transform: translate(-30px, 20px); }
+            70%      { transform: translate(15px, -20px); }
         }
 
         .kleinerBuchstabe {
@@ -277,77 +298,101 @@
         var angekommen = {};       // id -> true, sobald er im Kreis mitfliegt
         var flugAktiv = {};        // id -> true, waehrend der Einflug-Animation laeuft
 
-        var ERSTER_RADIUS = 320;
-        var RADIUS_SCHRITT = 150;
-        var BOGENABSTAND = 110;
+        var ERSTER_RADIUS = 220;          // Mindestabstand zur Bildschirmmitte (wegen dem P), Pixel
+        var MINDEST_ABSTAND_BUCHSTABEN = 130;   // Mindestabstand zwischen zwei Buchstaben, Pixel
+        var SCHWEBE_VARIANTEN = ["schwebenA", "schwebenB", "schwebenC", "schwebenD"];
 
         function zufallsZahl(min, max) {
             return Math.random() * (max - min) + min;
         }
 
-        function ringPosition(index) {
+        function passtPosition(x, y, breite, hoehe, bisherigePositionen) {
 
-            var radius = ERSTER_RADIUS;
-            var ringNummer = 0;
-            var restIndex = index;
+            var mitteX = breite / 2;
+            var mitteY = hoehe / 2;
 
-            while (true) {
-                var umfang = 2 * Math.PI * radius;
-                var platzAufRing = Math.max(6, Math.floor(umfang / BOGENABSTAND));
-
-                if (restIndex < platzAufRing) {
-                    var winkel = (360 / platzAufRing) * restIndex;
-                    return {
-                        radius: radius,
-                        winkel: winkel,
-                        ringNummer: ringNummer
-                    };
-                }
-
-                restIndex -= platzAufRing;
-                radius += RADIUS_SCHRITT;
-                ringNummer += 1;
+            var abstandZurMitte = Math.hypot(x - mitteX, y - mitteY);
+            if (abstandZurMitte < ERSTER_RADIUS) {
+                return false;
             }
+
+            for (var i = 0; i < bisherigePositionen.length; i++) {
+                var vorhanden = bisherigePositionen[i];
+                var abstand = Math.hypot(x - vorhanden.x, y - vorhanden.y);
+                if (abstand < MINDEST_ABSTAND_BUCHSTABEN) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        function findeZufallsPosition(breite, hoehe, bisherigePositionen) {
+
+            var versucheMax = 200;
+
+            for (var i = 0; i < versucheMax; i++) {
+
+                var x = zufallsZahl(60, breite - 60);
+                var y = zufallsZahl(60, hoehe - 60);
+
+                if (passtPosition(x, y, breite, hoehe, bisherigePositionen)) {
+                    return { x: x, y: y };
+                }
+            }
+
+            // Falls nach vielen Versuchen kein freier Platz gefunden wurde
+            // (Bildschirm sehr voll), trotzdem eine zufaellige Position nehmen.
+            return {
+                x: zufallsZahl(60, breite - 60),
+                y: zufallsZahl(60, hoehe - 60)
+            };
         }
 
         function erzeugePositionFuer(index) {
 
-            var ring = ringPosition(index);
+            var breite = window.innerWidth;
+            var hoehe = window.innerHeight;
+
+            var bisherigePositionen = [];
+            for (var id in positionen) {
+                bisherigePositionen.push(positionen[id]);
+            }
+
+            var platz = findeZufallsPosition(breite, hoehe, bisherigePositionen);
 
             return {
-                radius: ring.radius,
-                winkel: ring.winkel,
-                orbitDauer: zufallsZahl(20, 35),
+                x: platz.x,
+                y: platz.y,
                 spinDauer: zufallsZahl(5, 10),
-                richtung: (ring.ringNummer % 2 === 0) ? "normal" : "reverse"
+                schwebeVariante: SCHWEBE_VARIANTEN[Math.floor(Math.random() * SCHWEBE_VARIANTEN.length)],
+                schwebeDauer: zufallsZahl(10, 22),
+                schwebeVerzoegerung: -zufallsZahl(0, 20) // negativer Start, damit nicht alle synchron schweben
             };
         }
 
         function erzeugeOrbitElement(text, daten) {
 
-            var traeger = document.createElement("div");
-            traeger.className = "orbitPunkt";
-            traeger.style.transform = "rotate(" + daten.winkel + "deg)";
+            var platz = document.createElement("div");
+            platz.className = "schwebePlatz";
+            platz.style.left = daten.x + "px";
+            platz.style.top = daten.y + "px";
 
-            var dreher = document.createElement("div");
-            dreher.className = "orbitPunkt orbitDreher";
-            dreher.style.animationDuration = daten.orbitDauer + "s";
-            dreher.style.animationDirection = daten.richtung;
-
-            var abstand = document.createElement("div");
-            abstand.className = "orbitPunkt";
-            abstand.style.transform = "translateX(" + daten.radius + "px)";
+            var schwebend = document.createElement("div");
+            schwebend.className = "schwebend";
+            schwebend.style.animationName = daten.schwebeVariante;
+            schwebend.style.animationDuration = daten.schwebeDauer + "s";
+            schwebend.style.animationDelay = daten.schwebeVerzoegerung + "s";
 
             var buchstabe = document.createElement("div");
             buchstabe.className = "kleinerBuchstabe";
             buchstabe.textContent = text;
             buchstabe.style.animationDuration = daten.spinDauer + "s";
 
-            abstand.appendChild(buchstabe);
-            dreher.appendChild(abstand);
-            traeger.appendChild(dreher);
+            schwebend.appendChild(buchstabe);
+            platz.appendChild(schwebend);
 
-            return traeger;
+            return platz;
         }
 
         var orbitElemente = {};    // id -> bereits im Kreis eingefuegtes Element
@@ -413,9 +458,8 @@
             var startX = window.innerWidth * 0.12;
             var startY = window.innerHeight * 0.15;
 
-            var zielWinkelRad = daten.winkel * Math.PI / 180;
-            var zielX = mitteX + daten.radius * Math.cos(zielWinkelRad);
-            var zielY = mitteY + daten.radius * Math.sin(zielWinkelRad);
+            var zielX = daten.x;
+            var zielY = daten.y;
 
             // Schritt 1: glaenzender Stern blitzt kurz am Startpunkt auf
             var stern = document.createElement("div");
