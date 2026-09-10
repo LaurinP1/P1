@@ -280,6 +280,41 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        // ================== KOPIEN, DIE IN DIE TIEFE FLIEGEN ==================
+
+        var kopien = [];              // { mesh, zielZ }
+        var GENERATIONEN_MAX = 10;    // maximale Anzahl an Kopien
+        var TIEFEN_SCHRITT = -4;      // wie weit jede weitere Kopie zurueckfliegt
+        var naechsteGeneration = 1;
+        var SPAWN_INTERVALL_MS = 10000; // zum Testen: alle 10 Sekunden (spaeter z.B. auf 60000 stellen)
+
+        function spawneKopie() {
+
+            if (!modell || naechsteGeneration > GENERATIONEN_MAX) {
+                return;
+            }
+
+            var kopie = modell.clone();
+            kopie.position.set(0, 0, 0);
+            szene.add(kopie);
+
+            var zielZ = TIEFEN_SCHRITT * naechsteGeneration;
+
+            kopien.push({ mesh: kopie, zielZ: zielZ });
+
+            naechsteGeneration += 1;
+        }
+
+        setInterval(spawneKopie, SPAWN_INTERVALL_MS);
+
+        function aktualisiereKopien() {
+            for (var i = 0; i < kopien.length; i++) {
+                var k = kopien[i];
+                k.mesh.position.z += (k.zielZ - k.mesh.position.z) * 0.02;
+                k.mesh.rotation.y += 0.008;
+            }
+        }
+
         function animiereDreiD() {
             requestAnimationFrame(animiereDreiD);
 
