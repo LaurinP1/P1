@@ -259,18 +259,20 @@
         // Wie weit ein Buchstabe an dieser Tiefe (z) mindestens von der Mitte
         // (dem P) entfernt sein muss, damit es auf dem Bildschirm nie
         // ueberschneidet - skaliert mit der Kamera-Perspektive.
-        function mindestAbstandZentrumBeiTiefe(z) {
+        // "zusatz" ist ein optionaler weiterer Puffer (z.B. die halbe Breite
+        // eines ganzen Namens statt nur eines einzelnen Buchstabens).
+        function mindestAbstandZentrumBeiTiefe(z, zusatz) {
             var sichtbar = sichtbareGroesseBeiTiefe(z);
-            return sichtbar.halbeHoehe * ZENTRUM_SICHERHEIT_ANTEIL + ZENTRUM_PUFFER;
+            return sichtbar.halbeHoehe * ZENTRUM_SICHERHEIT_ANTEIL + ZENTRUM_PUFFER + (zusatz || 0);
         }
 
-        function passtPosition3D(x, y, z, bisherige) {
+        function passtPosition3D(x, y, z, bisherige, zusatzAbstand) {
 
             // Wichtig: nur x/y zaehlen (Bildschirmebene), nicht die Tiefe (z) -
             // sonst wuerde ein Punkt direkt hinter/vor dem P (x=0, y=0) faelschlich
             // als "weit genug entfernt" gelten, nur weil er in der Tiefe versetzt ist.
             var abstandZurMitte = Math.sqrt(x * x + y * y);
-            if (abstandZurMitte < mindestAbstandZentrumBeiTiefe(z)) {
+            if (abstandZurMitte < mindestAbstandZentrumBeiTiefe(z, zusatzAbstand)) {
                 return false;
             }
 
@@ -287,7 +289,7 @@
             return true;
         }
 
-        function findeFreiePosition() {
+        function findeFreiePosition(zusatzAbstand) {
 
             var bisherige = [];
             for (var id in positionen) {
@@ -303,7 +305,7 @@
                 var x = zufallsZahl(-sichtbar.halbeBreite * SICHTFELD_SICHERHEIT, sichtbar.halbeBreite * SICHTFELD_SICHERHEIT);
                 var y = zufallsZahl(-sichtbar.halbeHoehe * SICHTFELD_SICHERHEIT, sichtbar.halbeHoehe * SICHTFELD_SICHERHEIT);
 
-                if (passtPosition3D(x, y, z, bisherige)) {
+                if (passtPosition3D(x, y, z, bisherige, zusatzAbstand)) {
                     return { x: x, y: y, z: z };
                 }
             }
@@ -317,9 +319,9 @@
             };
         }
 
-        function erzeugePositionFuer() {
+        function erzeugePositionFuer(zusatzAbstand) {
 
-            var platz = findeFreiePosition();
+            var platz = findeFreiePosition(zusatzAbstand);
 
             return {
                 x: platz.x,
@@ -488,7 +490,7 @@
                 gruppe.add(kinder[j]);
             }
 
-            return { gruppe: gruppe, kinder: kinder };
+            return { gruppe: gruppe, kinder: kinder, breite: gesamtBreite };
         }
 
         function starteEinflug(eintrag) {
@@ -506,9 +508,6 @@
                 buchstabenText[id] = anfangsBuchstabe;
                 flugAktiv[id] = true;
 
-                positionen[id] = erzeugePositionFuer();
-                var daten = positionen[id];
-
                 // Der Name-Buchstaben-Verbund, ausgehend vom eigentlichen Anfangsbuchstaben
                 var nameOhneRest = vollerName.charAt(0) === anfangsBuchstabe.toLowerCase()
                     ? anfangsBuchstabe + vollerName.slice(1)
@@ -517,6 +516,12 @@
                 var aufbau = erzeugeNameGruppe(nameOhneRest, 0.7);
                 var gruppe = aufbau.gruppe;
                 var kinder = aufbau.kinder;
+
+                // Position erst JETZT suchen, mit der halben Wortbreite als
+                // zusaetzlichem Sicherheitsabstand zum P - sonst koennte ein
+                // Rand-Buchstabe bei laengeren Namen trotzdem ins P hineinragen.
+                positionen[id] = erzeugePositionFuer(aufbau.breite / 2);
+                var daten = positionen[id];
 
                 // Entlang der geraden Sichtlinie von der Kamera zur Zielposition anfliegen -
                 // so bleibt der Winkelabstand zum P (in der Bildschirmmitte) die ganze Zeit
