@@ -530,7 +530,8 @@
                 }
             }, 700);
 
-            // Schritt 2: der volle Name erscheint am Startpunkt
+            // Schritt 2: der volle Name erscheint am Startpunkt -
+            // sanft eingeblendet, mit leichtem "Pop"-Ueberschwung beim Wachsen
             var flugBuchstabe = document.createElement("div");
             flugBuchstabe.className = "fliegenderBuchstabe";
             flugBuchstabe.textContent = vollerName;
@@ -538,14 +539,16 @@
             flugBuchstabe.style.left = startX + "px";
             flugBuchstabe.style.top = startY + "px";
             flugBuchstabe.style.fontSize = "0px";
-            flugBuchstabe.style.opacity = "1";
+            flugBuchstabe.style.opacity = "0";
 
             flugSchicht.appendChild(flugBuchstabe);
 
-            requestAnimationFrame(function () {
-                flugBuchstabe.style.transition = "font-size 0.4s ease-out";
+            setTimeout(function () {
+                flugBuchstabe.style.transition =
+                    "font-size 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease-out";
                 flugBuchstabe.style.fontSize = "70px";
-            });
+                flugBuchstabe.style.opacity = "1";
+            }, 250);
 
             // Schritt 3: nach kurzem Erscheinen langsam in einer Schlangenlinie
             // (wie eine Achterbahn) zur Zielposition im Kreis fliegen.
