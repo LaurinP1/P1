@@ -138,6 +138,41 @@
             margin-top: 20px;
             font-size: 18px;
         }
+
+        .wegfliegenderName {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(1);
+
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 32px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+
+            color: transparent;
+            background-image: linear-gradient(180deg, #ffffff 0%, #a8a8a8 18%, #1a1a1a 45%, #6e6e6e 62%, #ffffff 82%, #9c9c9c 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow:
+                1px 1px 0px rgba(255,255,255,0.5),
+                -1px -1px 0px rgba(0,0,0,0.6);
+
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .wegfliegenderName.waechst {
+            transform: translate(-50%, -50%) scale(1.7);
+        }
+
+        .wegfliegenderName.fliegt {
+            transform: translate(-50%, -260vh) scale(0.25);
+            opacity: 0;
+        }
     </style>
 </head>
 
@@ -202,6 +237,33 @@
                     }
 
                     meldung.textContent = "Dein Name wurde hinzugefuegt!";
+
+                    // Der Name waechst erst langsam, dann fliegt er los - am Ende immer schneller
+                    var fliegenderName = document.createElement("div");
+                    fliegenderName.className = "wegfliegenderName";
+                    fliegenderName.textContent = name;
+                    document.body.appendChild(fliegenderName);
+
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(function () {
+                            fliegenderName.style.transition = "transform 0.8s ease-out";
+                            fliegenderName.classList.add("waechst");
+                        });
+                    });
+
+                    setTimeout(function () {
+                        fliegenderName.style.transition =
+                            "transform 1.3s cubic-bezier(0.5, 0, 1, 0.4), opacity 1.3s cubic-bezier(0.5, 0, 1, 0.4)";
+                        fliegenderName.classList.remove("waechst");
+                        fliegenderName.classList.add("fliegt");
+                    }, 800);
+
+                    setTimeout(function () {
+                        if (fliegenderName.parentNode) {
+                            document.body.removeChild(fliegenderName);
+                        }
+                    }, 2200);
+
                     feld.value = "";
                     feld.focus();
 
