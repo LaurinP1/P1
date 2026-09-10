@@ -212,7 +212,6 @@
         var dreiDBereich = document.getElementById("dreiDBereich");
 
         var szene = new THREE.Scene();
-        szene.fog = new THREE.Fog(0x000000, 6, 90);
 
         var kamera = new THREE.PerspectiveCamera(
             45,
@@ -280,108 +279,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // ================== KOPIEN, DIE IN DIE TIEFE FLIEGEN ==================
-
-        var kopien = [];              // { mesh, zielX, zielY, zielZ }
-        var GENERATIONEN_MAX = 15;    // maximale Anzahl an Kopien, bevor die Rueckkehr beginnt
-        var MIN_ABSTAND_KOPIEN = 6;   // Mindestabstand zwischen zwei Kopien im Raum
-        var naechsteGeneration = 1;
-        var kehrenZurueck = false;    // true, sobald alle Kopien wieder zum Mutter-P zurueckfliegen
-        var SPAWN_INTERVALL_MS = 10000; // zum Testen: alle 10 Sekunden (spaeter z.B. auf 60000 stellen)
-
-        function findeFreiePositionImRaum() {
-
-            var versucheMax = 150;
-
-            for (var i = 0; i < versucheMax; i++) {
-
-                var x = zufallsZahl(-16, 16);
-                var y = zufallsZahl(-6, 6);
-                var z = zufallsZahl(-12, -70);
-
-                var passt = true;
-
-                for (var j = 0; j < kopien.length; j++) {
-                    var k = kopien[j];
-                    var abstand = Math.sqrt(
-                        Math.pow(x - k.zielX, 2) +
-                        Math.pow(y - k.zielY, 2) +
-                        Math.pow(z - k.zielZ, 2)
-                    );
-                    if (abstand < MIN_ABSTAND_KOPIEN) {
-                        passt = false;
-                        break;
-                    }
-                }
-
-                if (passt) {
-                    return { x: x, y: y, z: z };
-                }
-            }
-
-            // Falls kein freier Platz gefunden wurde, trotzdem eine Position nehmen
-            return {
-                x: zufallsZahl(-16, 16),
-                y: zufallsZahl(-6, 6),
-                z: zufallsZahl(-12, -70)
-            };
-        }
-
-        function spawneKopie() {
-
-            if (!modell || kehrenZurueck) {
-                return;
-            }
-
-            if (naechsteGeneration > GENERATIONEN_MAX) {
-                // Maximum erreicht: alle Kopien fliegen jetzt zurueck zum Mutter-P
-                kehrenZurueck = true;
-                for (var i = 0; i < kopien.length; i++) {
-                    kopien[i].zielX = 0;
-                    kopien[i].zielY = 0;
-                    kopien[i].zielZ = 0;
-                }
-                return;
-            }
-
-            var kopie = modell.clone();
-            kopie.position.set(0, 0, 0);
-            szene.add(kopie);
-
-            var ziel = findeFreiePositionImRaum();
-
-            kopien.push({ mesh: kopie, zielX: ziel.x, zielY: ziel.y, zielZ: ziel.z });
-
-            naechsteGeneration += 1;
-        }
-
-        setInterval(spawneKopie, SPAWN_INTERVALL_MS);
-
-        function aktualisiereKopien() {
-
-            for (var i = kopien.length - 1; i >= 0; i--) {
-
-                var k = kopien[i];
-                k.mesh.position.x += (k.zielX - k.mesh.position.x) * 0.02;
-                k.mesh.position.y += (k.zielY - k.mesh.position.y) * 0.02;
-                k.mesh.position.z += (k.zielZ - k.mesh.position.z) * 0.02;
-                k.mesh.rotation.y += 0.008;
-
-                if (kehrenZurueck) {
-                    var abstandZurMitte = k.mesh.position.length();
-                    if (abstandZurMitte < 0.3) {
-                        szene.remove(k.mesh);
-                        kopien.splice(i, 1);
-                    }
-                }
-            }
-
-            // Sobald alle zurueckgekehrt sind: Zyklus von vorne beginnen
-            if (kehrenZurueck && kopien.length === 0) {
-                kehrenZurueck = false;
-                naechsteGeneration = 1;
-            }
-        }
+        // ================== ANIMATIONS-SCHLEIFE ==================
 
         function animiereDreiD() {
             requestAnimationFrame(animiereDreiD);
@@ -389,8 +287,6 @@
             if (modell) {
                 modell.rotation.y += 0.008;
             }
-
-            aktualisiereKopien();
 
             renderer.render(szene, kamera);
         }
