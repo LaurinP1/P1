@@ -74,14 +74,52 @@
             width: 90%;
             max-width: 300px;
             height: 60px;
-            font-size: 24px;
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 1px;
             text-align: center;
+            text-transform: uppercase;
 
             display: block;
             margin: 0 auto;
 
-            border: 1px solid #ccc;
-            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            color: transparent !important;
+            background-image:
+                linear-gradient(180deg, #ffffff 0%, #a8a8a8 18%, #1a1a1a 45%, #6e6e6e 62%, #ffffff 82%, #9c9c9c 100%),
+                linear-gradient(160deg, #b8b8b8 0%, #d8d8d8 30%, #9c9c9c 55%, #c8c8c8 75%, #a4a4a4 100%);
+            -webkit-background-clip: text, border-box;
+            background-clip: text, border-box;
+            -webkit-text-fill-color: transparent !important;
+            text-shadow:
+                1px 1px 0px rgba(255,255,255,0.6),
+                -1px -1px 0px rgba(0,0,0,0.75);
+
+            border: none;
+            border-radius: 6px;
+            box-shadow:
+                inset 2px 2px 5px rgba(0,0,0,0.55),
+                inset -2px -2px 4px rgba(255,255,255,0.7),
+                0 1px 0 rgba(255,255,255,0.4);
+        }
+
+        #namensfeld::placeholder {
+            color: transparent;
+            background-image: linear-gradient(180deg, #d8d8d8 0%, #9c9c9c 30%, #5c5c5c 55%, #a8a8a8 80%, #e0e0e0 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow:
+                1px 1px 1px rgba(255,255,255,0.4),
+                -1px -1px 1px rgba(0,0,0,0.5);
+        }
+
+        #namensfeld:focus {
+            outline: none;
+            box-shadow:
+                inset 2px 2px 6px rgba(0,0,0,0.6),
+                inset -2px -2px 5px rgba(255,255,255,0.8),
+                0 0 8px rgba(255,255,255,0.5);
         }
 
         #sendenButton {
@@ -115,7 +153,7 @@
 
         <h1>DEIN NAME</h1>
 
-        <input id="namensfeld" type="text" autocomplete="off">
+        <input id="namensfeld" type="text" autocomplete="off" placeholder="NAME EINGEBEN">
 
         <button id="sendenButton">Namen hinzufuegen</button>
 
