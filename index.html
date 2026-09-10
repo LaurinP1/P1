@@ -21,14 +21,6 @@
             height: 100%;
         }
 
-        #buchstabenSchicht {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
         #flugSchicht {
             position: fixed;
             top: 0;
@@ -68,93 +60,6 @@
             color: #222;
         }
 
-        .schwebePlatz {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .schwebend {
-            position: relative;
-            animation-timing-function: ease-in-out;
-            animation-iteration-count: infinite;
-        }
-
-        @keyframes schwebenA {
-            0%   { transform: translate(0vw, 0vh); }
-            20%  { transform: translate(14vw, -10vh); }
-            40%  { transform: translate(-6vw, -16vh); }
-            60%  { transform: translate(-16vw, 6vh); }
-            80%  { transform: translate(6vw, 14vh); }
-            100% { transform: translate(0vw, 0vh); }
-        }
-
-        @keyframes schwebenB {
-            0%   { transform: translate(0vw, 0vh); }
-            25%  { transform: translate(-15vw, 9vh); }
-            50%  { transform: translate(-4vw, -15vh); }
-            75%  { transform: translate(13vw, 11vh); }
-            100% { transform: translate(0vw, 0vh); }
-        }
-
-        @keyframes schwebenC {
-            0%   { transform: translate(0vw, 0vh); }
-            20%  { transform: translate(10vw, 13vh); }
-            45%  { transform: translate(-12vw, 15vh); }
-            70%  { transform: translate(-14vw, -12vh); }
-            90%  { transform: translate(9vw, -14vh); }
-            100% { transform: translate(0vw, 0vh); }
-        }
-
-        @keyframes schwebenD {
-            0%   { transform: translate(0vw, 0vh); }
-            30%  { transform: translate(-13vw, -13vh); }
-            55%  { transform: translate(12vw, -9vh); }
-            80%  { transform: translate(8vw, 15vh); }
-            100% { transform: translate(0vw, 0vh); }
-        }
-
-        .kleinerBuchstabe {
-            position: absolute;
-            left: 0;
-            top: 0;
-
-            font-family: Arial, sans-serif;
-            font-size: 70px;
-            font-weight: bold;
-
-            color: transparent;
-            background: linear-gradient(180deg, #ffffff 0%, #cfcfcf 35%, #6e6e6e 52%, #a8a8a8 65%, #ffffff 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6));
-
-            animation-name: drehenKlein;
-            animation-timing-function: linear;
-            animation-iteration-count: infinite;
-        }
-
-        @keyframes drehenKlein {
-            from { transform: translate(-50%, -50%) perspective(500px) rotateY(0deg); }
-            to   { transform: translate(-50%, -50%) perspective(500px) rotateY(360deg); }
-        }
-
-        .fliegenderBuchstabe {
-            position: absolute;
-            transform: translate(-50%, -50%);
-
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-
-            color: transparent;
-            background: linear-gradient(180deg, #ffffff 0%, #cfcfcf 35%, #6e6e6e 52%, #a8a8a8 65%, #ffffff 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7)) drop-shadow(0 0 40px rgba(255,255,255,0.6));
-        }
-
         .sternBlitz {
             position: absolute;
             width: 90px;
@@ -182,8 +87,6 @@
 
     <div id="dreiDBereich"></div>
 
-    <div id="buchstabenSchicht"></div>
-
     <div id="flugSchicht"></div>
 
     <div id="qrBereich">
@@ -206,6 +109,8 @@
         import * as THREE from "three";
         import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/GLTFLoader.js";
         import { RoomEnvironment } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/environments/RoomEnvironment.js";
+        import { FontLoader } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/FontLoader.js";
+        import { TextGeometry } from "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/geometries/TextGeometry.js";
 
         // ================== TEIL 1: DAS 3D-CHROME-P ==================
 
@@ -281,54 +186,111 @@
 
         // ================== ANIMATIONS-SCHLEIFE ==================
 
-        function animiereDreiD() {
+        function animiereDreiD(zeitMs) {
             requestAnimationFrame(animiereDreiD);
 
             if (modell) {
                 modell.rotation.y += 0.008;
             }
 
+            aktualisiereSchwebendeBuchstaben((zeitMs || 0) / 1000);
+
             renderer.render(szene, kamera);
         }
 
-        animiereDreiD();
+        animiereDreiD(0);
 
-        // ================== TEIL 2: DIE BUCHSTABEN ==================
+        // ================== TEIL 2: DIE BUCHSTABEN (ECHTE 3D-TEXT-OBJEKTE) ==================
 
         var SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
         var SUPABASE_KEY = "sb_publishable_PJWkENh6UaNXozYPPgHauA_86KQNb1z";
 
         var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        var schicht = document.getElementById("buchstabenSchicht");
-        var flugSchicht = document.getElementById("flugSchicht");
+        var flugSchicht = document.getElementById("flugSchicht"); // fuer den Stern-Sparkle-Effekt (bleibt flaches HTML)
 
-        var positionen = {};       // id -> Kreisbahn-Daten (Radius, Winkel, Geschwindigkeit ...)
-        var buchstabenText = {};   // id -> der eigentliche Buchstabe (Text)
-        var angekommen = {};       // id -> true, sobald er im Kreis mitfliegt
-        var flugAktiv = {};        // id -> true, waehrend der Einflug-Animation laeuft
+        var chromeMaterialBuchstaben = new THREE.MeshPhysicalMaterial({
+            color: 0x6b6262,
+            metalness: 1,
+            roughness: 0.08,
+            envMapIntensity: 2.2
+        });
 
-        var ERSTER_RADIUS = 220;          // Mindestabstand zur Bildschirmmitte (wegen dem P), Pixel
-        var MINDEST_ABSTAND_BUCHSTABEN = 130;   // Mindestabstand zwischen zwei Buchstaben, Pixel
-        var SCHWEBE_VARIANTEN = ["schwebenA", "schwebenB", "schwebenC", "schwebenD"];
+        var schriftart = null;           // geladene 3D-Schriftart
+        var wennSchriftBereit = [];       // Funktionen, die auf die Schriftart warten
+
+        function schriftartAusfuehrenSobaldBereit(funktion) {
+            if (schriftart) {
+                funktion();
+            } else {
+                wennSchriftBereit.push(funktion);
+            }
+        }
+
+        var fontLader = new FontLoader();
+        fontLader.load(
+            "https://cdn.jsdelivr.net/npm/three@0.150.0/examples/fonts/helvetiker_bold.typeface.json",
+            function (geladeneSchrift) {
+                schriftart = geladeneSchrift;
+                for (var i = 0; i < wennSchriftBereit.length; i++) {
+                    wennSchriftBereit[i]();
+                }
+                wennSchriftBereit = [];
+            },
+            undefined,
+            function (fehler) {
+                console.error("FEHLER beim Laden der 3D-Schriftart:", fehler);
+            }
+        );
+
+        function erzeugeTextMesh(text, groesse) {
+            var geometrie = new TextGeometry(text, {
+                font: schriftart,
+                size: groesse,
+                height: groesse * 0.25,
+                curveSegments: 8,
+                bevelEnabled: true,
+                bevelThickness: groesse * 0.03,
+                bevelSize: groesse * 0.02,
+                bevelSegments: 4
+            });
+            geometrie.center();
+            return new THREE.Mesh(geometrie, chromeMaterialBuchstaben);
+        }
+
+        // ---- Positionierung im 3D-Raum ----
+
+        var positionen = {};        // id -> { x, y, z, Schwebe-/Dreh-Parameter }
+        var buchstabenText = {};    // id -> der Anfangsbuchstabe
+        var buchstabenObjekte = {}; // id -> das Mesh, das gerade in der Szene ist
+        var angekommen = {};        // id -> true, sobald er frei schwebt
+        var flugAktiv = {};         // id -> true, waehrend der Einflug laeuft
+        var letterWarteschlange = {}; // Buchstabe -> Liste von ids, in Reihenfolge des Erscheinens
+        var MAX_PRO_BUCHSTABE = 10;
+
+        var RAUM_BREITE = 7;         // x-Bereich: -RAUM_BREITE bis +RAUM_BREITE
+        var RAUM_HOEHE = 3.6;        // y-Bereich: -RAUM_HOEHE bis +RAUM_HOEHE
+        var RAUM_TIEFE_VORN = 2;     // z-Bereich vorne (naeher an der Kamera)
+        var RAUM_TIEFE_HINTEN = -3;  // z-Bereich hinten
+        var MINDEST_ABSTAND_ZENTRUM = 2.6;   // Abstand zum P in der Mitte
+        var MINDEST_ABSTAND_BUCHSTABEN = 1.8;
 
         function zufallsZahl(min, max) {
             return Math.random() * (max - min) + min;
         }
 
-        function passtPosition(x, y, breite, hoehe, bisherigePositionen) {
+        function passtPosition3D(x, y, z, bisherige) {
 
-            var mitteX = breite / 2;
-            var mitteY = hoehe / 2;
-
-            var abstandZurMitte = Math.hypot(x - mitteX, y - mitteY);
-            if (abstandZurMitte < ERSTER_RADIUS) {
+            var abstandZurMitte = Math.sqrt(x * x + y * y + z * z);
+            if (abstandZurMitte < MINDEST_ABSTAND_ZENTRUM) {
                 return false;
             }
 
-            for (var i = 0; i < bisherigePositionen.length; i++) {
-                var vorhanden = bisherigePositionen[i];
-                var abstand = Math.hypot(x - vorhanden.x, y - vorhanden.y);
+            for (var i = 0; i < bisherige.length; i++) {
+                var v = bisherige[i];
+                var abstand = Math.sqrt(
+                    Math.pow(x - v.x, 2) + Math.pow(y - v.y, 2) + Math.pow(z - v.z, 2)
+                );
                 if (abstand < MINDEST_ABSTAND_BUCHSTABEN) {
                     return false;
                 }
@@ -337,96 +299,80 @@
             return true;
         }
 
-        function findeZufallsPosition(breite, hoehe, bisherigePositionen) {
+        function findeFreiePosition() {
 
-            var versucheMax = 200;
+            var bisherige = [];
+            for (var id in positionen) {
+                bisherige.push(positionen[id]);
+            }
+
+            var versucheMax = 150;
 
             for (var i = 0; i < versucheMax; i++) {
 
-                var x = zufallsZahl(60, breite - 60);
-                var y = zufallsZahl(60, hoehe - 60);
+                var x = zufallsZahl(-RAUM_BREITE, RAUM_BREITE);
+                var y = zufallsZahl(-RAUM_HOEHE, RAUM_HOEHE);
+                var z = zufallsZahl(RAUM_TIEFE_HINTEN, RAUM_TIEFE_VORN);
 
-                if (passtPosition(x, y, breite, hoehe, bisherigePositionen)) {
-                    return { x: x, y: y };
+                if (passtPosition3D(x, y, z, bisherige)) {
+                    return { x: x, y: y, z: z };
                 }
             }
 
-            // Falls nach vielen Versuchen kein freier Platz gefunden wurde
-            // (Bildschirm sehr voll), trotzdem eine zufaellige Position nehmen.
             return {
-                x: zufallsZahl(60, breite - 60),
-                y: zufallsZahl(60, hoehe - 60)
+                x: zufallsZahl(-RAUM_BREITE, RAUM_BREITE),
+                y: zufallsZahl(-RAUM_HOEHE, RAUM_HOEHE),
+                z: zufallsZahl(RAUM_TIEFE_HINTEN, RAUM_TIEFE_VORN)
             };
         }
 
-        function erzeugePositionFuer(index) {
+        function erzeugePositionFuer() {
 
-            var breite = window.innerWidth;
-            var hoehe = window.innerHeight;
-
-            var bisherigePositionen = [];
-            for (var id in positionen) {
-                bisherigePositionen.push(positionen[id]);
-            }
-
-            var platz = findeZufallsPosition(breite, hoehe, bisherigePositionen);
+            var platz = findeFreiePosition();
 
             return {
                 x: platz.x,
                 y: platz.y,
-                spinDauer: zufallsZahl(5, 10),
-                schwebeVariante: SCHWEBE_VARIANTEN[Math.floor(Math.random() * SCHWEBE_VARIANTEN.length)],
-                schwebeDauer: zufallsZahl(18, 35),
-                schwebeVerzoegerung: -zufallsZahl(0, 20) // negativer Start, damit nicht alle synchron schweben
+                z: platz.z,
+                phaseX: zufallsZahl(0, Math.PI * 2),
+                phaseY: zufallsZahl(0, Math.PI * 2),
+                phaseZ: zufallsZahl(0, Math.PI * 2),
+                schwebeGeschwindigkeit: zufallsZahl(0.15, 0.35),
+                schwebeAmplitude: zufallsZahl(0.5, 1.1),
+                spinGeschwindigkeit: zufallsZahl(0.006, 0.014)
             };
         }
 
-        function erzeugeOrbitElement(text, daten) {
+        // ---- Ein-, Aus- und Aktualisieren der Buchstaben-Objekte ----
 
-            var platz = document.createElement("div");
-            platz.className = "schwebePlatz";
-            platz.style.left = daten.x + "px";
-            platz.style.top = daten.y + "px";
+        function entferneBuchstabenObjekt(id) {
 
-            var schwebend = document.createElement("div");
-            schwebend.className = "schwebend";
-            schwebend.style.animationName = daten.schwebeVariante;
-            schwebend.style.animationDuration = daten.schwebeDauer + "s";
-            schwebend.style.animationDelay = daten.schwebeVerzoegerung + "s";
-
-            var buchstabe = document.createElement("div");
-            buchstabe.className = "kleinerBuchstabe";
-            buchstabe.textContent = text;
-            buchstabe.style.animationDuration = daten.spinDauer + "s";
-
-            schwebend.appendChild(buchstabe);
-            platz.appendChild(schwebend);
-
-            return platz;
-        }
-
-        var orbitElemente = {};    // id -> bereits im Kreis eingefuegtes Element
-        var letterWarteschlange = {}; // Buchstabe (z.B. "A") -> Liste von ids, in Reihenfolge des Erscheinens
-        var MAX_PRO_BUCHSTABE = 10;
-
-        function entferneBuchstabenElement(id) {
-
-            var element = orbitElemente[id];
-            if (!element) {
+            var mesh = buchstabenObjekte[id];
+            if (!mesh) {
                 return;
             }
 
-            element.style.transition = "opacity 1s ease-in, filter 1s ease-in";
-            element.style.opacity = "0";
-            element.style.filter = "blur(6px)";
+            var startSkala = mesh.scale.x;
+            var startZeit = null;
+            var dauer = 900;
 
-            setTimeout(function () {
-                if (element.parentNode) {
-                    schicht.removeChild(element);
+            function schrumpfen(zeit) {
+                if (!startZeit) {
+                    startZeit = zeit;
                 }
-            }, 1000);
+                var verlauf = Math.min((zeit - startZeit) / dauer, 1);
+                var skala = startSkala * (1 - verlauf);
+                mesh.scale.setScalar(Math.max(skala, 0.0001));
 
-            delete orbitElemente[id];
+                if (verlauf < 1) {
+                    requestAnimationFrame(schrumpfen);
+                } else {
+                    szene.remove(mesh);
+                }
+            }
+            requestAnimationFrame(schrumpfen);
+
+            delete buchstabenObjekte[id];
             delete positionen[id];
             delete angekommen[id];
             delete buchstabenText[id];
@@ -440,14 +386,14 @@
 
             while (letterWarteschlange[buchstabe].length >= MAX_PRO_BUCHSTABE) {
                 var aeltesteId = letterWarteschlange[buchstabe].shift();
-                entferneBuchstabenElement(aeltesteId);
+                entferneBuchstabenObjekt(aeltesteId);
             }
         }
 
-        function fuegeInOrbitEin(id) {
+        function fuegeInSzeneEin(id) {
 
-            if (orbitElemente[id]) {
-                return; // ist schon drin, nicht doppelt einfuegen
+            if (buchstabenObjekte[id]) {
+                return;
             }
 
             var buchstabe = buchstabenText[id];
@@ -455,13 +401,14 @@
             begrenzeAufMaximum(buchstabe);
             letterWarteschlange[buchstabe].push(id);
 
-            var element = erzeugeOrbitElement(buchstabe, positionen[id]);
-            orbitElemente[id] = element;
-            schicht.appendChild(element);
+            var mesh = erzeugeTextMesh(buchstabe, 0.9);
+            var daten = positionen[id];
+            mesh.position.set(daten.x, daten.y, daten.z);
+
+            szene.add(mesh);
+            buchstabenObjekte[id] = mesh;
         }
 
-        // Buchstaben, die beim ersten Laden der Seite schon vorhanden sind:
-        // direkt in den Kreis setzen, ohne die Gross-Einflug-Animation.
         function platziereOhneEinflug(liste) {
 
             for (var i = 0; i < liste.length; i++) {
@@ -472,20 +419,35 @@
                 buchstabenText[id] = eintrag.Buchstabe;
 
                 if (!positionen[id]) {
-                    var naechsterIndex = Object.keys(positionen).length;
-                    positionen[id] = erzeugePositionFuer(naechsterIndex);
+                    positionen[id] = erzeugePositionFuer();
                 }
 
                 angekommen[id] = true;
-                fuegeInOrbitEin(id);
+                fuegeInSzeneEin(id);
             }
         }
 
-        // Ein neuer Buchstabe kommt live dazu:
-        // 1) Ein glaenzender Fuenf-Stern blitzt oben links kurz auf.
-        // 2) Der Buchstabe erscheint dort und fliegt in einer langsamen
-        //    Schlangenlinie (wie eine Achterbahn) quer ueber den Bildschirm.
-        // 3) Am Ziel reiht er sich in den Kreis ein.
+        function aktualisiereSchwebendeBuchstaben(zeitSek) {
+
+            for (var id in buchstabenObjekte) {
+
+                var mesh = buchstabenObjekte[id];
+                var daten = positionen[id];
+                if (!mesh || !daten) {
+                    continue;
+                }
+
+                var dx = Math.sin(zeitSek * daten.schwebeGeschwindigkeit + daten.phaseX) * daten.schwebeAmplitude;
+                var dy = Math.cos(zeitSek * daten.schwebeGeschwindigkeit * 0.8 + daten.phaseY) * daten.schwebeAmplitude;
+                var dz = Math.sin(zeitSek * daten.schwebeGeschwindigkeit * 0.6 + daten.phaseZ) * daten.schwebeAmplitude * 0.5;
+
+                mesh.position.set(daten.x + dx, daten.y + dy, daten.z + dz);
+                mesh.rotation.y += daten.spinGeschwindigkeit;
+            }
+        }
+
+        // ---- Der grosse Name-Einflug ----
+
         function starteEinflug(eintrag) {
 
             var id = eintrag.id;
@@ -496,179 +458,175 @@
                 return;
             }
 
-            buchstabenText[id] = anfangsBuchstabe;
-            flugAktiv[id] = true;
+            schriftartAusfuehrenSobaldBereit(function () {
 
-            var naechsterIndex = Object.keys(positionen).length;
-            positionen[id] = erzeugePositionFuer(naechsterIndex);
-            var daten = positionen[id];
+                buchstabenText[id] = anfangsBuchstabe;
+                flugAktiv[id] = true;
 
-            var mitteX = window.innerWidth / 2;
-            var mitteY = window.innerHeight / 2;
+                positionen[id] = erzeugePositionFuer();
+                var daten = positionen[id];
 
-            // Startpunkt oben links (mit etwas Abstand zum Rand, damit man ihn sieht)
-            var startX = window.innerWidth * 0.12;
-            var startY = window.innerHeight * 0.15;
+                // Startpunkt oben links im 3D-Raum (nah an der Kamera, gut sichtbar)
+                var startX = -5.5;
+                var startY = 2.6;
+                var startZ = 2.5;
 
-            var zielX = daten.x;
-            var zielY = daten.y;
+                // --- Stern-Sparkle: bleibt ein flaches HTML-Element oben auf dem Bildschirm ---
+                var sternX = window.innerWidth * 0.12;
+                var sternY = window.innerHeight * 0.15;
 
-            // Schritt 1: glaenzender Stern blitzt kurz am Startpunkt auf
-            var stern = document.createElement("div");
-            stern.className = "sternBlitz";
-            stern.style.left = startX + "px";
-            stern.style.top = startY + "px";
-            stern.innerHTML =
-                '<svg viewBox="0 0 100 100">' +
-                '<polygon points="50,5 61,39 98,39 68,60 79,95 50,73 21,95 32,60 2,39 39,39" fill="white"/>' +
-                '</svg>';
-            flugSchicht.appendChild(stern);
+                var stern = document.createElement("div");
+                stern.className = "sternBlitz";
+                stern.style.left = sternX + "px";
+                stern.style.top = sternY + "px";
+                stern.innerHTML =
+                    '<svg viewBox="0 0 100 100">' +
+                    '<polygon points="50,5 61,39 98,39 68,60 79,95 50,73 21,95 32,60 2,39 39,39" fill="white"/>' +
+                    '</svg>';
+                flugSchicht.appendChild(stern);
 
-            setTimeout(function () {
-                if (stern.parentNode) {
-                    flugSchicht.removeChild(stern);
-                }
-            }, 700);
+                setTimeout(function () {
+                    if (stern.parentNode) {
+                        flugSchicht.removeChild(stern);
+                    }
+                }, 700);
 
-            // Schritt 2: der volle Name erscheint am Startpunkt -
-            // sanft eingeblendet, mit leichtem "Pop"-Ueberschwung beim Wachsen
-            var flugBuchstabe = document.createElement("div");
-            flugBuchstabe.className = "fliegenderBuchstabe";
-            flugBuchstabe.textContent = vollerName;
+                // --- Der volle Name erscheint als 3D-Text am Startpunkt ---
+                var nameMesh = erzeugeTextMesh(vollerName, 0.01); // erstmal winzig, waechst gleich
+                nameMesh.position.set(startX, startY, startZ);
+                szene.add(nameMesh);
 
-            flugBuchstabe.style.left = startX + "px";
-            flugBuchstabe.style.top = startY + "px";
-            flugBuchstabe.style.fontSize = "0px";
-            flugBuchstabe.style.opacity = "0";
+                var wachstumStart = null;
+                var wachstumDauer = 550;
 
-            flugSchicht.appendChild(flugBuchstabe);
+                setTimeout(function () {
 
-            setTimeout(function () {
-                flugBuchstabe.style.transition =
-                    "font-size 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease-out";
-                flugBuchstabe.style.fontSize = "70px";
-                flugBuchstabe.style.opacity = "1";
-            }, 250);
+                    function wachsen(zeit) {
+                        if (!wachstumStart) {
+                            wachstumStart = zeit;
+                        }
+                        var verlauf = Math.min((zeit - wachstumStart) / wachstumDauer, 1);
+                        // leichter Ueberschwung (Pop-Effekt), simpel gehalten
+                        var ueberschwung = 1 + 0.15 * Math.sin(verlauf * Math.PI);
+                        var skala = verlauf * ueberschwung;
 
-            // Schritt 3: nach kurzem Erscheinen langsam in einer Schlangenlinie
-            // (wie eine Achterbahn) zur Zielposition im Kreis fliegen.
-            // Etwa auf halbem Weg verkuerzt sich der Name zum Anfangsbuchstaben.
-            setTimeout(function () {
+                        nameMesh.scale.setScalar(Math.max(skala, 0.0001));
 
-                var flugDauerMs = 5000;   // Dauer des Flugs (langsam, gut sichtbar)
-                var anzahlWellen = 3.5;   // wie oft die Linie hin und her schlaengelt
+                        if (verlauf < 1) {
+                            requestAnimationFrame(wachsen);
+                        } else {
+                            starteFlugPhase();
+                        }
+                    }
+                    requestAnimationFrame(wachsen);
 
-                var deltaX = zielX - startX;
-                var deltaY = zielY - startY;
-                var streckenLaenge = Math.hypot(deltaX, deltaY);
+                }, 250);
 
-                var senkrechtX = -deltaY / streckenLaenge;
-                var senkrechtY = deltaX / streckenLaenge;
+                function starteFlugPhase() {
 
-                var maxAuslenkung = Math.min(140, streckenLaenge * 0.18);
+                    var flugDauerMs = 5000;
+                    var hatSichVerkuerzt = false;
+                    var aktuellesMesh = nameMesh;
 
-                var startZeit = null;
-                var hatSichVerkuerzt = false;
+                    var startZeit = null;
 
-                function schlangenSchritt(zeit) {
+                    function schritt(zeit) {
 
-                    if (!startZeit) {
-                        startZeit = zeit;
+                        if (!startZeit) {
+                            startZeit = zeit;
+                        }
+                        var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
+                        var eased = 1 - Math.pow(1 - verlauf, 2);
+
+                        var x = startX + (daten.x - startX) * eased;
+                        var y = startY + (daten.y - startY) * eased;
+                        var z = startZ + (daten.z - startZ) * eased;
+
+                        // sanftes Schwenken quer zur Flugrichtung, statt schnurgerade
+                        var schwenk = Math.sin(verlauf * Math.PI * 2.5) * 1.1 * (1 - eased);
+
+                        // leichte Groessenvariation waehrend des Flugs
+                        var groessenPuls = 1 + 0.12 * Math.sin(verlauf * Math.PI * 3);
+
+                        aktuellesMesh.position.set(x + schwenk, y, z);
+                        aktuellesMesh.rotation.y += 0.02;
+                        aktuellesMesh.scale.setScalar(groessenPuls);
+
+                        // Etwa auf halbem Weg: Name verschwindet, Anfangsbuchstabe erscheint
+                        if (!hatSichVerkuerzt && verlauf >= 0.5) {
+
+                            hatSichVerkuerzt = true;
+
+                            szene.remove(aktuellesMesh);
+
+                            var buchstabenMesh = erzeugeTextMesh(anfangsBuchstabe, 0.7);
+                            buchstabenMesh.position.copy(aktuellesMesh.position);
+                            szene.add(buchstabenMesh);
+
+                            aktuellesMesh = buchstabenMesh;
+                        }
+
+                        if (verlauf < 1) {
+                            requestAnimationFrame(schritt);
+                        } else {
+                            fertig();
+                        }
                     }
 
-                    var verlauf = Math.min((zeit - startZeit) / flugDauerMs, 1);
-                    var eased = 1 - Math.pow(1 - verlauf, 2); // sanftes Ankommen am Ende
+                    function fertig() {
 
-                    var grundX = startX + deltaX * eased;
-                    var grundY = startY + deltaY * eased;
+                        if (aktuellesMesh) {
+                            szene.remove(aktuellesMesh);
+                        }
 
-                    var auslenkung = maxAuslenkung * (1 - eased) * Math.sin(verlauf * anzahlWellen * 2 * Math.PI);
+                        flugAktiv[id] = false;
+                        angekommen[id] = true;
 
-                    var x = grundX + senkrechtX * auslenkung;
-                    var y = grundY + senkrechtY * auslenkung;
-
-                    flugBuchstabe.style.left = x + "px";
-                    flugBuchstabe.style.top = y + "px";
-
-                    // Auf halbem Weg: Name kurz ausblenden und als
-                    // Anfangsbuchstabe wieder einblenden
-                    if (!hatSichVerkuerzt && verlauf >= 0.5) {
-
-                        hatSichVerkuerzt = true;
-
-                        flugBuchstabe.style.transition = "opacity 0.18s ease-in-out, font-size 0.18s ease-in-out";
-                        flugBuchstabe.style.opacity = "0";
-
-                        setTimeout(function () {
-                            flugBuchstabe.textContent = anfangsBuchstabe;
-                            flugBuchstabe.style.fontSize = "70px";
-                            flugBuchstabe.style.opacity = "1";
-                        }, 180);
+                        fuegeInSzeneEin(id);
                     }
 
-                    if (verlauf < 1) {
-                        requestAnimationFrame(schlangenSchritt);
-                    } else {
-                        einflugFertig();
-                    }
+                    requestAnimationFrame(schritt);
+
+                    // Sicherheitsnetz: falls irgendwas haengen bleibt, trotzdem fertig machen
+                    setTimeout(function () {
+                        if (flugAktiv[id]) {
+                            fertig();
+                        }
+                    }, flugDauerMs + 2000);
                 }
-
-                requestAnimationFrame(schlangenSchritt);
-
-            }, 900);
-
-            // Sicherheitsnetz: falls die Flugberechnung aus irgendeinem Grund
-            // haengen bleibt (z.B. weil das Browserfenster kurz nicht im Fokus war),
-            // wird der Buchstabe trotzdem spaetestens jetzt in den Kreis eingefuegt.
-            setTimeout(function () {
-                if (flugAktiv[id]) {
-                    einflugFertig();
-                }
-            }, 7500);
-
-            function einflugFertig() {
-
-                if (!flugAktiv[id]) {
-                    return; // ist schon fertig, nicht doppelt ausfuehren
-                }
-
-                if (flugBuchstabe.parentNode) {
-                    flugSchicht.removeChild(flugBuchstabe);
-                }
-
-                flugAktiv[id] = false;
-                angekommen[id] = true;
-
-                fuegeInOrbitEin(id);
-            }
+            });
         }
 
-        // Erstes Laden: vorhandene Buchstaben direkt anzeigen
-        supabaseClient
-            .from("Buchstaben")
-            .select("*")
-            .order("id", { ascending: true })
-            .then(function (response) {
+        // ---- Supabase: erstes Laden + Live-Updates ----
+        // (wartet, bis die 3D-Schriftart fertig geladen ist)
 
-                if (response.error) {
-                    console.error("SUPABASE FEHLER:", response.error);
-                    return;
-                }
+        schriftartAusfuehrenSobaldBereit(function () {
 
-                platziereOhneEinflug(response.data);
-            });
+            supabaseClient
+                .from("Buchstaben")
+                .select("*")
+                .order("id", { ascending: true })
+                .then(function (response) {
 
-        // Neuer Buchstabe kommt live dazu: Einflug-Animation starten
-        supabaseClient
-            .channel("buchstaben-live")
-            .on(
-                "postgres_changes",
-                { event: "INSERT", schema: "public", table: "Buchstaben" },
-                function (payload) {
-                    starteEinflug(payload.new);
-                }
-            )
-            .subscribe();
+                    if (response.error) {
+                        console.error("SUPABASE FEHLER:", response.error);
+                        return;
+                    }
+
+                    platziereOhneEinflug(response.data);
+                });
+
+            supabaseClient
+                .channel("buchstaben-live")
+                .on(
+                    "postgres_changes",
+                    { event: "INSERT", schema: "public", table: "Buchstaben" },
+                    function (payload) {
+                        starteEinflug(payload.new);
+                    }
+                )
+                .subscribe();
+        });
 
     </script>
 
