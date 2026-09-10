@@ -500,12 +500,6 @@
                 var flugDauerMs = 3200;
                 var startZeit = null;
 
-                function eigenDrehungAnwenden() {
-                    for (var i = 0; i < kinder.length; i++) {
-                        kinder[i].rotation.y += kinder[i].userData.eigenSpin;
-                    }
-                }
-
                 function anflugSchritt(zeit) {
 
                     if (!startZeit) {
@@ -518,24 +512,57 @@
                     var skala = 0.03 + (1 - 0.03) * eased;
 
                     // sanfter Bogen/Schlingern waehrend des Anflugs, klingt zum Ende hin ab
-                    var schlingerX = Math.sin(verlauf * Math.PI * 2) * 1.4 * (1 - eased);
-                    var schlingerY = Math.cos(verlauf * Math.PI * 1.6) * 0.7 * (1 - eased);
+                    var schlingerX = Math.sin(verlauf * Math.PI * 2) * 0.8 * (1 - eased);
+                    var schlingerY = Math.cos(verlauf * Math.PI * 1.6) * 0.4 * (1 - eased);
 
                     gruppe.position.set(daten.x + schlingerX, daten.y + schlingerY, z);
                     gruppe.scale.setScalar(skala);
-
-                    eigenDrehungAnwenden();
+                    gruppe.rotation.y += 0.02; // die ganze Gruppe dreht sich als ein Stueck
 
                     if (verlauf < 1) {
                         requestAnimationFrame(anflugSchritt);
                     } else {
                         gruppe.position.set(daten.x, daten.y, daten.z);
                         gruppe.scale.setScalar(1);
-                        setTimeout(starteAufloesen, 500);
+                        starteWartePhase();
                     }
                 }
 
                 requestAnimationFrame(anflugSchritt);
+
+                // Nach der Ankunft: nicht starr stehen bleiben, sondern sanft
+                // ein kleines Stueck in der Tiefe vor und zurueck pendeln,
+                // waehrend die Gruppe sich weiterdreht.
+                var wartePhaseAktiv = false;
+
+                function starteWartePhase() {
+
+                    wartePhaseAktiv = true;
+                    var wartePhaseStart = null;
+
+                    function pendeln(zeit) {
+
+                        if (!wartePhaseAktiv) {
+                            return;
+                        }
+
+                        if (!wartePhaseStart) {
+                            wartePhaseStart = zeit;
+                        }
+                        var vergangeneSek = (zeit - wartePhaseStart) / 1000;
+
+                        var pendelZ = Math.sin(vergangeneSek * 1.1) * 0.35;
+                        gruppe.position.z = daten.z + pendelZ;
+                        gruppe.rotation.y += 0.012;
+
+                        requestAnimationFrame(pendeln);
+                    }
+                    requestAnimationFrame(pendeln);
+
+                    setTimeout(function () {
+                        starteAufloesen();
+                    }, 500);
+                }
 
                 function starteAufloesen() {
 
@@ -587,6 +614,7 @@
                 }
 
                 function alleWegAusserErster() {
+                    wartePhaseAktiv = false;
                     szene.remove(gruppe);
 
                     flugAktiv[id] = false;
