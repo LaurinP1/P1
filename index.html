@@ -235,15 +235,24 @@
         var letterWarteschlange = {}; // Buchstabe -> Liste von ids, in Reihenfolge des Erscheinens
         var MAX_PRO_BUCHSTABE = 10;
 
-        var RAUM_BREITE = 7;         // x-Bereich: -RAUM_BREITE bis +RAUM_BREITE
-        var RAUM_HOEHE = 3.6;        // y-Bereich: -RAUM_HOEHE bis +RAUM_HOEHE
-        var RAUM_TIEFE_VORN = 2;     // z-Bereich vorne (naeher an der Kamera)
-        var RAUM_TIEFE_HINTEN = -3;  // z-Bereich hinten
+        var RAUM_TIEFE_VORN = 1;      // z-Bereich vorne (naeher an der Kamera)
+        var RAUM_TIEFE_HINTEN = -2.5; // z-Bereich hinten
+        var SICHTFELD_SICHERHEIT = 0.6; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
         var MINDEST_ABSTAND_ZENTRUM = 2.6;   // Abstand zum P in der Mitte
         var MINDEST_ABSTAND_BUCHSTABEN = 1.8;
 
         function zufallsZahl(min, max) {
             return Math.random() * (max - min) + min;
+        }
+
+        // Berechnet, wie breit/hoch der sichtbare Bereich der Kamera bei einer
+        // bestimmten Tiefe (z) tatsaechlich ist - damit nichts ausserhalb landet.
+        function sichtbareGroesseBeiTiefe(z) {
+            var distanz = kamera.position.z - z;
+            var vFovRad = (kamera.fov * Math.PI) / 180;
+            var halbeHoehe = Math.tan(vFovRad / 2) * distanz;
+            var halbeBreite = halbeHoehe * kamera.aspect;
+            return { halbeBreite: halbeBreite, halbeHoehe: halbeHoehe };
         }
 
         function passtPosition3D(x, y, z, bisherige) {
@@ -277,19 +286,22 @@
 
             for (var i = 0; i < versucheMax; i++) {
 
-                var x = zufallsZahl(-RAUM_BREITE, RAUM_BREITE);
-                var y = zufallsZahl(-RAUM_HOEHE, RAUM_HOEHE);
                 var z = zufallsZahl(RAUM_TIEFE_HINTEN, RAUM_TIEFE_VORN);
+                var sichtbar = sichtbareGroesseBeiTiefe(z);
+                var x = zufallsZahl(-sichtbar.halbeBreite * SICHTFELD_SICHERHEIT, sichtbar.halbeBreite * SICHTFELD_SICHERHEIT);
+                var y = zufallsZahl(-sichtbar.halbeHoehe * SICHTFELD_SICHERHEIT, sichtbar.halbeHoehe * SICHTFELD_SICHERHEIT);
 
                 if (passtPosition3D(x, y, z, bisherige)) {
                     return { x: x, y: y, z: z };
                 }
             }
 
+            var zFallback = zufallsZahl(RAUM_TIEFE_HINTEN, RAUM_TIEFE_VORN);
+            var sichtbarFallback = sichtbareGroesseBeiTiefe(zFallback);
             return {
-                x: zufallsZahl(-RAUM_BREITE, RAUM_BREITE),
-                y: zufallsZahl(-RAUM_HOEHE, RAUM_HOEHE),
-                z: zufallsZahl(RAUM_TIEFE_HINTEN, RAUM_TIEFE_VORN)
+                x: zufallsZahl(-sichtbarFallback.halbeBreite * SICHTFELD_SICHERHEIT, sichtbarFallback.halbeBreite * SICHTFELD_SICHERHEIT),
+                y: zufallsZahl(-sichtbarFallback.halbeHoehe * SICHTFELD_SICHERHEIT, sichtbarFallback.halbeHoehe * SICHTFELD_SICHERHEIT),
+                z: zFallback
             };
         }
 
@@ -305,7 +317,7 @@
                 phaseY: zufallsZahl(0, Math.PI * 2),
                 phaseZ: zufallsZahl(0, Math.PI * 2),
                 schwebeGeschwindigkeit: zufallsZahl(0.15, 0.35),
-                schwebeAmplitude: zufallsZahl(0.5, 1.1),
+                schwebeAmplitude: zufallsZahl(0.25, 0.45),
                 spinGeschwindigkeit: zufallsZahl(0.006, 0.014)
             };
         }
@@ -447,7 +459,6 @@
                 kinder[j].position.x = x + b / 2;
                 x += b + luecke;
 
-                kinder[j].userData.eigenSpin = zufallsZahl(0.01, 0.022);
                 gruppe.add(kinder[j]);
             }
 
