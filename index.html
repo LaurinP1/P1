@@ -516,7 +516,20 @@
 
             }, 900);
 
+            // Sicherheitsnetz: falls die Flugberechnung aus irgendeinem Grund
+            // haengen bleibt (z.B. weil das Browserfenster kurz nicht im Fokus war),
+            // wird der Buchstabe trotzdem spaetestens jetzt in den Kreis eingefuegt.
+            setTimeout(function () {
+                if (flugAktiv[id]) {
+                    einflugFertig();
+                }
+            }, 7500);
+
             function einflugFertig() {
+
+                if (!flugAktiv[id]) {
+                    return; // ist schon fertig, nicht doppelt ausfuehren
+                }
 
                 if (flugBuchstabe.parentNode) {
                     flugSchicht.removeChild(flugBuchstabe);
