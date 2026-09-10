@@ -131,14 +131,21 @@
   // --- Supabase-Verbindung ---
   const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxY212eWFuamRkY21lb29xeGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODA5MzksImV4cCI6MjEwNDQ1NjkzOX0.L9xyydjhnMPk62nCeGuxaU3TQ7mnWAXKQ4xVn6payPA";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const form = document.getElementById("form");
   const msg = document.getElementById("msg");
   const submitBtn = document.getElementById("submitBtn");
 
+  // WICHTIG: Der Klick auf "Anmelden" wird jetzt IMMER abgefangen,
+  // auch wenn die Supabase-Bibliothek (von der CDN) nicht geladen hat.
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+
+    if (typeof window.supabase === "undefined") {
+      msg.textContent = "Verbindung konnte nicht aufgebaut werden. Bitte Seite neu laden (evtl. Internet/WLAN prüfen) und nochmal versuchen.";
+      msg.className = "msg error";
+      return;
+    }
 
     const name = document.getElementById("name").value.trim();
     const begleitRaw = document.getElementById("begleitpersonen").value.trim();
@@ -159,20 +166,28 @@
     msg.textContent = "Wird gesendet …";
     msg.className = "msg";
 
-    const { error } = await supabase
-      .from("Anmeldungen")
-      .insert([{ Name: name, Begleitpersonen: begleitpersonen }]);
+    try {
+      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const { error } = await sb
+        .from("Anmeldungen")
+        .insert([{ Name: name, Begleitpersonen: begleitpersonen }]);
 
-    if (error) {
-      console.error(error);
+      if (error) {
+        console.error(error);
+        msg.textContent = "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal.";
+        msg.className = "msg error";
+        submitBtn.disabled = false;
+        return;
+      }
+
+      document.getElementById("form").style.display = "none";
+      document.getElementById("thankyou").style.display = "block";
+    } catch (err) {
+      console.error(err);
       msg.textContent = "Da ist etwas schiefgelaufen. Bitte versuch es noch einmal.";
       msg.className = "msg error";
       submitBtn.disabled = false;
-      return;
     }
-
-    document.getElementById("form").style.display = "none";
-    document.getElementById("thankyou").style.display = "block";
   });
 </script>
 </body>
