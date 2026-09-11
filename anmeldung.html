@@ -114,6 +114,12 @@
   }
   .msg.error { color: var(--error); }
   .msg.success { color: var(--accent); }
+  .note {
+    margin: -14px 0 22px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
   .hint {
     font-size: 0.78rem;
     color: var(--muted);
@@ -137,6 +143,7 @@
 
       <h1>Du willst ein Geschenk vom PROJEKT_1-Team?</h1>
       <p class="sub">Kein Problem! Trag dich einfach ein – der Rest ist unsere Überraschung 😉</p>
+      <p class="note">🎨 Wer zuerst einträgt, malt zuerst!</p>
 
       <label for="name">Vorname</label>
       <input type="text" id="name" placeholder="Vorname" required autocomplete="given-name">
@@ -284,8 +291,9 @@
     function animate() {
       requestAnimationFrame(animate);
       t += 0.008;
-      giftGroup.rotation.y = Math.sin(t) * 0.55 + t * 0.25;
-      giftGroup.position.y = Math.sin(t * 1.3) * 0.08;
+      giftGroup.rotation.y = t * 0.3;
+      giftGroup.rotation.z = Math.sin(t * 7) * 0.045;
+      giftGroup.position.y = Math.sin(t * 1.3) * 0.08 + Math.sin(t * 14) * 0.015;
       renderer.render(scene, camera);
     }
     animate();
