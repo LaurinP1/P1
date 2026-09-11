@@ -109,7 +109,7 @@
 
     <form id="form">
       <label for="name">Dein Name</label>
-      <input type="text" id="name" placeholder="Vor- und Nachname" required autocomplete="name">
+      <input type="text" id="name" placeholder="Vorname" required autocomplete="given-name">
 
       <label for="begleitpersonen">Begleitpersonen <span style="opacity:.7">(optional)</span></label>
       <input type="number" id="begleitpersonen" min="0" step="1" placeholder="0" inputmode="numeric">
@@ -136,8 +136,6 @@
   const msg = document.getElementById("msg");
   const submitBtn = document.getElementById("submitBtn");
 
-  // WICHTIG: Der Klick auf "Anmelden" wird jetzt IMMER abgefangen,
-  // auch wenn die Supabase-Bibliothek (von der CDN) nicht geladen hat.
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
