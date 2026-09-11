@@ -160,6 +160,7 @@
         kamera.position.set(0, 0, 6);
 
         var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.3;
@@ -204,6 +205,19 @@
 
         var aktivesMesh = null;
 
+        // Rechnet einen Bildschirmpunkt (z.B. die Mitte des Eingabefelds) in eine
+        // 3D-Weltposition auf der z=0 Ebene um, damit der Name dort "auftaucht",
+        // wo der Name gerade eingetippt wurde - statt ploetzlich in der Mitte.
+        function bildschirmPunktInWelt(px, py) {
+            var ndcX = (px / window.innerWidth) * 2 - 1;
+            var ndcY = -(py / window.innerHeight) * 2 + 1;
+            var vektor = new THREE.Vector3(ndcX, ndcY, 0.5);
+            vektor.unproject(kamera);
+            var richtung = vektor.sub(kamera.position).normalize();
+            var distanz = -kamera.position.z / richtung.z;
+            return kamera.position.clone().add(richtung.multiplyScalar(distanz));
+        }
+
         function animieren() {
             requestAnimationFrame(animieren);
             renderer.render(szene, kamera);
@@ -234,24 +248,38 @@
             chromeMaterial.transparent = false;
 
             var mesh = new THREE.Mesh(geometrie, chromeMaterial);
-            mesh.position.set(0, 0, 0);
+
+            // Startet exakt dort, wo das Eingabefeld auf dem Bildschirm sitzt -
+            // fuer einen nahtlosen Uebergang vom eingetippten Text zum 3D-Namen.
+            var feldRect = feld.getBoundingClientRect();
+            var startPos = bildschirmPunktInWelt(
+                feldRect.left + feldRect.width / 2,
+                feldRect.top + feldRect.height / 2
+            );
+
+            mesh.position.copy(startPos);
             mesh.scale.setScalar(0.001);
             szene.add(mesh);
             aktivesMesh = mesh;
 
-            // Phase 1: langsam waechst der Name
+            // Phase 1: langsam waechst der Name und gleitet sanft zur Mitte
             var wachstumDauer = 800;
             var wachstumStart = null;
+            var zielSkala = 0.75; // moderates Wachstum, nicht zu gross/aufdringlich
 
             function wachsen(zeit) {
                 if (!wachstumStart) {
                     wachstumStart = zeit;
                 }
                 var verlauf = Math.min((zeit - wachstumStart) / wachstumDauer, 1);
-                var eased = verlauf * verlauf;
-                var skala = 0.001 + (1.1 - 0.001) * eased;
+                var eased = 1 - Math.pow(1 - verlauf, 2);
+                var skala = 0.001 + (zielSkala - 0.001) * eased;
                 mesh.scale.setScalar(skala);
                 mesh.rotation.y = (1 - verlauf) * 0.3;
+
+                mesh.position.x = startPos.x * (1 - eased);
+                mesh.position.y = startPos.y * (1 - eased);
+                mesh.position.z = startPos.z * (1 - eased);
 
                 if (verlauf < 1) {
                     requestAnimationFrame(wachsen);
@@ -266,6 +294,7 @@
 
                 var flugDauer = 1300;
                 var flugStart = null;
+                var startSkala = zielSkala;
 
                 function schritt(zeit) {
                     if (!flugStart) {
@@ -276,7 +305,7 @@
 
                     mesh.position.y = eased * 9;
                     mesh.position.z = eased * -6;
-                    var skala = 1.1 * (1 - eased * 0.85);
+                    var skala = startSkala * (1 - eased * 0.85);
                     mesh.scale.setScalar(Math.max(skala, 0.01));
                     mesh.material.opacity = 1 - eased;
 
