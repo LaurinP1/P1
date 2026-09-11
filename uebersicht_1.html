@@ -116,7 +116,6 @@
 <script>
   const SUPABASE_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxY212eWFuamRkY21lb29xeGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODA5MzksImV4cCI6MjEwNDQ1NjkzOX0.L9xyydjhnMPk62nCeGuxaU3TQ7mnWAXKQ4xVn6payPA";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const tableWrap = document.getElementById("tableWrap");
   const statAnmeldungen = document.getElementById("statAnmeldungen");
@@ -131,7 +130,13 @@
   async function load() {
     tableWrap.innerHTML = '<div class="loading">Lade Daten …</div>';
 
-    const { data, error } = await supabase
+    if (typeof window.supabase === "undefined") {
+      tableWrap.innerHTML = '<div class="error">Verbindung konnte nicht aufgebaut werden. Bitte Seite neu laden.</div>';
+      return;
+    }
+
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await sb
       .from("Anmeldungen")
       .select("*")
       .order("created_at", { ascending: false });
