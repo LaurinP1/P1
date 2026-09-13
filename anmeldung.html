@@ -282,7 +282,40 @@
       envMapIntensity: 2.2
     });
 
-    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.56, 2.06), ribbonMat);
+    // Vertikales Band bekommt den Namen "Laurin", ganz dezent (fast weiß auf weiß), laufend
+    const laurinCanvas = document.createElement("canvas");
+    laurinCanvas.width = 200;
+    laurinCanvas.height = 1400;
+    const lctx = laurinCanvas.getContext("2d");
+    lctx.fillStyle = "#ffffff";
+    lctx.fillRect(0, 0, laurinCanvas.width, laurinCanvas.height);
+    lctx.fillStyle = "#e7e9ec";
+    lctx.font = "600 78px -apple-system, Helvetica, Arial, sans-serif";
+    lctx.textAlign = "center";
+    lctx.textBaseline = "middle";
+    const laurinStep = laurinCanvas.height / 6;
+    for (let i = 0; i < 6; i++) {
+      lctx.fillText("Laurin", laurinCanvas.width / 2, laurinStep * i + laurinStep / 2);
+    }
+    const laurinTex = new THREE.CanvasTexture(laurinCanvas);
+    laurinTex.colorSpace = THREE.SRGBColorSpace;
+    laurinTex.wrapT = THREE.RepeatWrapping;
+    laurinTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+    const bandVMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0.15,
+      roughness: 0.1,
+      clearcoat: 1,
+      clearcoatRoughness: 0.04,
+      iridescence: 0.9,
+      iridescenceIOR: 1.3,
+      iridescenceThicknessRange: [100, 400],
+      envMapIntensity: 2.2,
+      map: laurinTex
+    });
+
+    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.56, 2.06), bandVMat);
     bandV.position.y = -0.25;
     giftGroup.add(bandV);
     const bandH = new THREE.Mesh(new THREE.BoxGeometry(2.36, 0.24, 2.06), ribbonMat);
@@ -413,6 +446,7 @@
       if (nameTex) {
         nameTex.offset.x -= 0.0022;
       }
+      laurinTex.offset.y += 0.0014;
 
       const pulse = 0.85 + Math.sin(glowT) * 0.15;
       glowLight.intensity = 5.5 * pulse;
