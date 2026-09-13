@@ -153,7 +153,7 @@
         <div class="gift-fallback" id="giftFallback">🎁</div>
       </div>
 
-      <span class="date-badge">📅 23. Oktober</span>
+      <span class="date-badge">📅 23. Oktober · 19:00 Uhr</span>
       <h1>Du willst ein Geschenk vom PROJEKT_1-Team?</h1>
       <p class="sub">Kein Problem! Trag dich einfach ein – der Rest ist unsere Überraschung 😉</p>
       <p class="note">🎨 Wer zuerst einträgt, malt zuerst!</p>
@@ -176,10 +176,17 @@
     </div>
   </div>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
 <script type="module">
   // --- 3D Glas-Geschenkbox (Three.js) ---
   try {
-    const THREE = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
+    const THREE = await import("three");
     const { RoomEnvironment } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js");
     const { RoundedBoxGeometry } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js");
 
