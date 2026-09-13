@@ -307,40 +307,6 @@
     glowSprite.position.set(0, 0.5, 0);
     giftGroup.add(glowSprite);
 
-    // Lichtstrahlen, die fächerförmig nach oben aus der Öffnung schießen
-    const rayCanvas = document.createElement("canvas");
-    rayCanvas.width = 48;
-    rayCanvas.height = 320;
-    const rctx = rayCanvas.getContext("2d");
-    const rayGrad = rctx.createRadialGradient(24, 320, 0, 24, 320, 320);
-    rayGrad.addColorStop(0, "rgba(255,240,215,0.6)");
-    rayGrad.addColorStop(0.35, "rgba(255,215,165,0.28)");
-    rayGrad.addColorStop(1, "rgba(255,200,140,0)");
-    rctx.fillStyle = rayGrad;
-    rctx.fillRect(0, 0, 48, 320);
-    const rayTex = new THREE.CanvasTexture(rayCanvas);
-
-    // Strahlen kommen tief aus der Box und stehen hinter dem P1 (dahinter positioniert)
-    const rayGroup = new THREE.Group();
-    const rayCount = 7;
-    const raySprites = [];
-    for (let i = 0; i < rayCount; i++) {
-      const rayMat = new THREE.SpriteMaterial({
-        map: rayTex,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        transparent: true,
-        rotation: (i - (rayCount - 1) / 2) * 0.42
-      });
-      const raySprite = new THREE.Sprite(rayMat);
-      raySprite.scale.set(0.5, 3.2, 1);
-      raySprite.position.set(0, 1.3, 0);
-      rayGroup.add(raySprite);
-      raySprites.push(raySprite);
-    }
-    rayGroup.position.set(0, 0.35, -0.25);
-    giftGroup.add(rayGroup);
-
     giftGroup.rotation.x = -0.12;
     giftGroup.scale.setScalar(0.82);
 
@@ -399,9 +365,6 @@
       const pulse = 0.85 + Math.sin(glowT) * 0.15;
       glowLight.intensity = 5.5 * pulse;
       glowSprite.scale.set(2.5 * pulse, 2.5 * pulse, 1);
-      raySprites.forEach((s, i) => {
-        s.material.opacity = 0.75 + Math.sin(glowT + i) * 0.25;
-      });
 
       renderer.render(scene, camera);
     }
