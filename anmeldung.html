@@ -302,15 +302,7 @@
 
     (async () => {
       try {
-        const NR_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
-        const NR_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxY212eWFuamRkY21lb29xeGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODA5MzksImV4cCI6MjEwNDQ1NjkzOX0.L9xyydjhnMPk62nCeGuxaU3TQ7mnWAXKQ4xVn6payPA";
-        const res = await fetch(`${NR_URL}/rest/v1/Anmeldungen?select=Name&order=created_at.asc`, {
-          headers: { apikey: NR_KEY, Authorization: `Bearer ${NR_KEY}` }
-        });
-        const rows = await res.json();
-        const names = (Array.isArray(rows) ? rows : [])
-          .map((r) => (r.Name || "").trim())
-          .filter(Boolean);
+        const names = ["Camillo", "Hancii", "Jeroen", "Sunnyone", "DJ Butter"];
         if (!names.length) return;
 
         const canvas = document.createElement("canvas");
