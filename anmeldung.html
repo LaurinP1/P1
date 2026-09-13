@@ -293,7 +293,8 @@
     const nameRingMat = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
-      side: THREE.DoubleSide
+      depthWrite: false,
+      side: THREE.FrontSide
     });
     const nameRingGeo = new THREE.CylinderGeometry(1.32, 1.32, 0.22, 64, 1, true);
     const nameRing = new THREE.Mesh(nameRingGeo, nameRingMat);
@@ -321,6 +322,8 @@
 
         const nameTex = new THREE.CanvasTexture(canvas);
         nameTex.colorSpace = THREE.SRGBColorSpace;
+        nameTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        nameTex.wrapS = THREE.RepeatWrapping;
         nameRingMat.map = nameTex;
         nameRingMat.opacity = 1;
         nameRingMat.needsUpdate = true;
