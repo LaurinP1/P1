@@ -289,6 +289,54 @@
     bandH.position.y = -0.1;
     giftGroup.add(bandH);
 
+    // Namen der Auftretenden laufen einmal komplett (360°) und gleichmäßig verteilt ums Band
+    const nameRingMat = new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide
+    });
+    const nameRingGeo = new THREE.CylinderGeometry(1.32, 1.32, 0.22, 64, 1, true);
+    const nameRing = new THREE.Mesh(nameRingGeo, nameRingMat);
+    nameRing.position.y = -0.1;
+    giftGroup.add(nameRing);
+
+    (async () => {
+      try {
+        const NR_URL = "https://kqcmvyanjddcmeooqxaz.supabase.co";
+        const NR_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxY212eWFuamRkY21lb29xeGF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODA5MzksImV4cCI6MjEwNDQ1NjkzOX0.L9xyydjhnMPk62nCeGuxaU3TQ7mnWAXKQ4xVn6payPA";
+        const res = await fetch(`${NR_URL}/rest/v1/Anmeldungen?select=Name&order=created_at.asc`, {
+          headers: { apikey: NR_KEY, Authorization: `Bearer ${NR_KEY}` }
+        });
+        const rows = await res.json();
+        const names = (Array.isArray(rows) ? rows : [])
+          .map((r) => (r.Name || "").trim())
+          .filter(Boolean);
+        if (!names.length) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = 2048;
+        canvas.height = 128;
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#4a5160";
+        ctx.font = "600 40px -apple-system, Helvetica, Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const step = canvas.width / names.length;
+        names.forEach((name, i) => {
+          ctx.fillText(name, step * i + step / 2, canvas.height / 2);
+        });
+
+        const nameTex = new THREE.CanvasTexture(canvas);
+        nameTex.colorSpace = THREE.SRGBColorSpace;
+        nameRingMat.map = nameTex;
+        nameRingMat.opacity = 1;
+        nameRingMat.needsUpdate = true;
+      } catch (e) {
+        console.warn("Namen fuers Geschenkband konnten nicht geladen werden:", e);
+      }
+    })();
+
     // Goldenes Licht, das aus der geöffneten Box strahlt
     const glowLight = new THREE.PointLight(0xff9d2e, 5.5, 4.5, 2);
     glowLight.position.set(0, 0.55, 0);
