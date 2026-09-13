@@ -206,12 +206,15 @@
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    // Licht
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    // Licht (mehr Kontrast = shinyeres Chrom)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const key = new THREE.DirectionalLight(0xffffff, 2.4);
     key.position.set(3, 4, 5);
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x8fd9ff, 0.6);
+    const key2 = new THREE.DirectionalLight(0xffffff, 1.6);
+    key2.position.set(-3, 2, 4);
+    scene.add(key2);
+    const rim = new THREE.DirectionalLight(0x8fd9ff, 0.9);
     rim.position.set(-4, -2, -3);
     scene.add(rim);
 
@@ -221,24 +224,24 @@
     // Chrom-Geschenkbox (gleiche Metallic-Farbe wie der P1-Buchstabe, jetzt heller)
     const boxGeo = new RoundedBoxGeometry(2.4, 2.0, 2.0, 4, 0.14);
     const chromeMat = new THREE.MeshPhysicalMaterial({
-      color: 0xf4f6f8,
+      color: 0xffffff,
       metalness: 1,
-      roughness: 0.07,
-      clearcoat: 0.6,
-      clearcoatRoughness: 0.06,
-      envMapIntensity: 2.3
+      roughness: 0.025,
+      clearcoat: 1,
+      clearcoatRoughness: 0.02,
+      envMapIntensity: 3.4
     });
     const box = new THREE.Mesh(boxGeo, chromeMat);
     giftGroup.add(box);
 
     // Schlichtes Band (zwei sich kreuzende Streifen, heller Chrom-Ton)
     const ribbonMat = new THREE.MeshPhysicalMaterial({
-      color: 0xb7bcc2,
+      color: 0xf2f3f5,
       metalness: 1,
-      roughness: 0.12,
-      clearcoat: 0.5,
-      clearcoatRoughness: 0.1,
-      envMapIntensity: 2.0
+      roughness: 0.04,
+      clearcoat: 1,
+      clearcoatRoughness: 0.03,
+      envMapIntensity: 3.2
     });
 
     const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.06, 2.06), ribbonMat);
