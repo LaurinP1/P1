@@ -230,18 +230,45 @@
       envMapIntensity: 3.4
     });
 
-    // Klassische Box mit Deckel + geradem Kreuzband (wie im Referenzbild)
+    // Box, die sich oben öffnet (Klappen statt festem Deckel)
     const baseGeo = new RoundedBoxGeometry(2.3, 1.5, 2.0, 6, 0.12);
     const base = new THREE.Mesh(baseGeo, chromeMat);
     base.position.y = -0.25;
     giftGroup.add(base);
 
-    const lidGeo = new RoundedBoxGeometry(2.42, 0.48, 2.1, 6, 0.14);
-    const lid = new THREE.Mesh(lidGeo, chromeMat);
-    lid.position.y = 0.74;
-    giftGroup.add(lid);
+    const flapFront = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.52, 0.05), chromeMat);
+    flapFront.position.y = 0.26;
+    const pivotFront = new THREE.Group();
+    pivotFront.position.set(0, 0.5, 1.0);
+    pivotFront.rotation.x = THREE.MathUtils.degToRad(100);
+    pivotFront.add(flapFront);
+    giftGroup.add(pivotFront);
 
-    // Schleifenband, kreuzt gerade über Box + Deckel
+    const flapBack = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.52, 0.05), chromeMat);
+    flapBack.position.y = 0.26;
+    const pivotBack = new THREE.Group();
+    pivotBack.position.set(0, 0.5, -1.0);
+    pivotBack.rotation.x = THREE.MathUtils.degToRad(-100);
+    pivotBack.add(flapBack);
+    giftGroup.add(pivotBack);
+
+    const flapRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.52, 1.9), chromeMat);
+    flapRight.position.y = 0.26;
+    const pivotRight = new THREE.Group();
+    pivotRight.position.set(1.15, 0.5, 0);
+    pivotRight.rotation.z = THREE.MathUtils.degToRad(-100);
+    pivotRight.add(flapRight);
+    giftGroup.add(pivotRight);
+
+    const flapLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.52, 1.9), chromeMat);
+    flapLeft.position.y = 0.26;
+    const pivotLeft = new THREE.Group();
+    pivotLeft.position.set(-1.15, 0.5, 0);
+    pivotLeft.rotation.z = THREE.MathUtils.degToRad(100);
+    pivotLeft.add(flapLeft);
+    giftGroup.add(pivotLeft);
+
+    // Schleifenband um den Korpus, heller Chrom-Ton
     const ribbonMat = new THREE.MeshPhysicalMaterial({
       color: 0xf2f3f5,
       metalness: 1,
@@ -251,10 +278,34 @@
       envMapIntensity: 3.2
     });
 
-    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.26, 2.02, 2.14), ribbonMat);
+    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.56, 2.06), ribbonMat);
+    bandV.position.y = -0.25;
     giftGroup.add(bandV);
-    const bandH = new THREE.Mesh(new THREE.BoxGeometry(2.46, 2.02, 0.26), ribbonMat);
+    const bandH = new THREE.Mesh(new THREE.BoxGeometry(2.36, 0.24, 2.06), ribbonMat);
+    bandH.position.y = -0.1;
     giftGroup.add(bandH);
+
+    // Goldenes Licht, das aus der geöffneten Box strahlt
+    const glowLight = new THREE.PointLight(0xffc46b, 4, 4.2, 2);
+    glowLight.position.set(0, 0.55, 0);
+    giftGroup.add(glowLight);
+
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = 128;
+    glowCanvas.height = 128;
+    const gctx = glowCanvas.getContext("2d");
+    const grad = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, "rgba(255,225,170,0.95)");
+    grad.addColorStop(0.4, "rgba(255,190,90,0.5)");
+    grad.addColorStop(1, "rgba(255,190,90,0)");
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, 128, 128);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+    const glowMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+    const glowSprite = new THREE.Sprite(glowMat);
+    glowSprite.scale.set(2.3, 2.3, 1);
+    glowSprite.position.set(0, 0.5, 0);
+    giftGroup.add(glowSprite);
 
     giftGroup.rotation.x = -0.12;
     giftGroup.scale.setScalar(0.82);
