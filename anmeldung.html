@@ -184,7 +184,7 @@
 }
 </script>
 <script type="module">
-  // --- 3D Glas-Geschenkbox (Three.js) ---
+  // --- 3D Chrom-Geschenkbox (Three.js) ---
   try {
     const THREE = await import("three");
     const { RoomEnvironment } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/environments/RoomEnvironment.js");
@@ -218,79 +218,52 @@
     const giftGroup = new THREE.Group();
     scene.add(giftGroup);
 
-    // Glasbox
-    const boxGeo = new RoundedBoxGeometry(2.6, 2.0, 2.0, 5, 0.16);
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xf5fbff,
-      metalness: 0,
-      roughness: 0.04,
-      transmission: 1,
-      thickness: 1.4,
-      ior: 1.45,
+    // Chrom-Geschenkbox (gleiche Metallic-Farbe wie der P1-Buchstabe, jetzt heller)
+    const boxGeo = new RoundedBoxGeometry(2.4, 2.0, 2.0, 4, 0.14);
+    const chromeMat = new THREE.MeshPhysicalMaterial({
+      color: 0xf4f6f8,
+      metalness: 1,
+      roughness: 0.07,
       clearcoat: 0.6,
-      clearcoatRoughness: 0.1,
-      envMapIntensity: 1.3,
-      attenuationColor: new THREE.Color(0x9fe8ff),
-      attenuationDistance: 3.5
+      clearcoatRoughness: 0.06,
+      envMapIntensity: 2.3
     });
-    const box = new THREE.Mesh(boxGeo, glassMat);
+    const box = new THREE.Mesh(boxGeo, chromeMat);
     giftGroup.add(box);
 
-    // Rotes Geschenkband (zwei sich kreuzende Streifen)
+    // Schlichtes Band (zwei sich kreuzende Streifen, heller Chrom-Ton)
     const ribbonMat = new THREE.MeshPhysicalMaterial({
-      color: 0xc81e2c,
-      roughness: 0.3,
-      metalness: 0.05,
-      clearcoat: 0.7,
-      clearcoatRoughness: 0.2
+      color: 0xb7bcc2,
+      metalness: 1,
+      roughness: 0.12,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.1,
+      envMapIntensity: 2.0
     });
 
-    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.42, 2.08, 2.08), ribbonMat);
+    const bandV = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.06, 2.06), ribbonMat);
     giftGroup.add(bandV);
-    const bandH = new THREE.Mesh(new THREE.BoxGeometry(2.68, 2.08, 0.42), ribbonMat);
+    const bandH = new THREE.Mesh(new THREE.BoxGeometry(2.46, 2.06, 0.32), ribbonMat);
     giftGroup.add(bandH);
 
-    // Schleife oben
-    const bowGroup = new THREE.Group();
-    bowGroup.position.set(0, 1.18, 0);
-    giftGroup.add(bowGroup);
-
-    function makeLoop(sign) {
-      const torus = new THREE.Mesh(
-        new THREE.TorusGeometry(0.42, 0.15, 16, 32),
-        ribbonMat
-      );
-      torus.scale.set(1, 1.3, 0.7);
-      torus.position.set(sign * 0.4, 0.1, 0);
-      torus.rotation.z = sign * 0.5;
-      torus.rotation.x = 0.3;
-      return torus;
-    }
-    bowGroup.add(makeLoop(1));
-    bowGroup.add(makeLoop(-1));
-
-    const knot = new THREE.Mesh(new THREE.SphereGeometry(0.24, 24, 24), ribbonMat);
-    knot.position.set(0, 0.05, 0.1);
-    bowGroup.add(knot);
-
-    // Bandenden vorne
-    function makeTail(sign) {
-      const shape = new THREE.Shape();
-      shape.moveTo(-0.22, 0);
-      shape.lineTo(0.22, 0);
-      shape.lineTo(0.12, -0.9);
-      shape.lineTo(0, -0.7);
-      shape.lineTo(-0.12, -0.9);
-      shape.closePath();
-      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.06, bevelEnabled: false });
-      const tail = new THREE.Mesh(geo, ribbonMat);
-      tail.position.set(sign * 0.17, 1.05, 1.02);
-      tail.rotation.y = sign * 0.15;
-      tail.rotation.z = sign * -0.08;
-      return tail;
-    }
-    giftGroup.add(makeTail(1));
-    giftGroup.add(makeTail(-1));
+    // "Schleife" in Form des P1-Schriftzugs oben auf der Box
+    const { FontLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FontLoader.js");
+    const { TextGeometry } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/TextGeometry.js");
+    const font = await new FontLoader().loadAsync("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json");
+    const textGeo = new TextGeometry("P1", {
+      font: font,
+      size: 0.72,
+      height: 0.22,
+      curveSegments: 8,
+      bevelEnabled: true,
+      bevelThickness: 0.03,
+      bevelSize: 0.02,
+      bevelSegments: 3
+    });
+    textGeo.center();
+    const textMesh = new THREE.Mesh(textGeo, chromeMat);
+    textMesh.position.set(0, 1.38, 0);
+    giftGroup.add(textMesh);
 
     giftGroup.rotation.x = -0.12;
 
@@ -310,10 +283,8 @@
     let t = 0;
     function animate() {
       requestAnimationFrame(animate);
-      t += 0.008;
-      giftGroup.rotation.y = t * 0.3;
-      giftGroup.rotation.z = Math.sin(t * 7) * 0.045;
-      giftGroup.position.y = Math.sin(t * 1.3) * 0.08 + Math.sin(t * 14) * 0.015;
+      t += 0.004;
+      giftGroup.rotation.y = t;
       renderer.render(scene, camera);
     }
     animate();
