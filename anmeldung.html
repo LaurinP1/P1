@@ -230,18 +230,46 @@
       envMapIntensity: 3.4
     });
 
-    // Klassische Geschenkbox: Unterteil + Deckel (statt ein einzelner Kasten)
-    const baseGeo = new RoundedBoxGeometry(2.4, 1.5, 2.0, 6, 0.14);
+    // Offene Box (Karton, nach oben geöffnet) statt geschlossenem Kasten mit Deckel
+    const baseGeo = new RoundedBoxGeometry(2.4, 1.6, 2.0, 6, 0.14);
     const base = new THREE.Mesh(baseGeo, chromeMat);
-    base.position.y = -0.25;
+    base.position.y = -0.3;
     giftGroup.add(base);
 
-    const lidGeo = new RoundedBoxGeometry(2.5, 0.56, 2.08, 6, 0.16);
-    const lid = new THREE.Mesh(lidGeo, chromeMat);
-    lid.position.y = 0.78;
-    giftGroup.add(lid);
+    // Klappen oben, leicht nach außen aufgeklappt
+    const flapFront = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.55, 0.05), chromeMat);
+    flapFront.position.y = 0.275;
+    const pivotFront = new THREE.Group();
+    pivotFront.position.set(0, 0.5, 1.0);
+    pivotFront.rotation.x = THREE.MathUtils.degToRad(100);
+    pivotFront.add(flapFront);
+    giftGroup.add(pivotFront);
 
-    // Schleifenband (dünner & rund statt flacher Kasten-Streifen), heller Chrom-Ton
+    const flapBack = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.55, 0.05), chromeMat);
+    flapBack.position.y = 0.275;
+    const pivotBack = new THREE.Group();
+    pivotBack.position.set(0, 0.5, -1.0);
+    pivotBack.rotation.x = THREE.MathUtils.degToRad(-100);
+    pivotBack.add(flapBack);
+    giftGroup.add(pivotBack);
+
+    const flapRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 1.9), chromeMat);
+    flapRight.position.y = 0.275;
+    const pivotRight = new THREE.Group();
+    pivotRight.position.set(1.2, 0.5, 0);
+    pivotRight.rotation.z = THREE.MathUtils.degToRad(-100);
+    pivotRight.add(flapRight);
+    giftGroup.add(pivotRight);
+
+    const flapLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 1.9), chromeMat);
+    flapLeft.position.y = 0.275;
+    const pivotLeft = new THREE.Group();
+    pivotLeft.position.set(-1.2, 0.5, 0);
+    pivotLeft.rotation.z = THREE.MathUtils.degToRad(100);
+    pivotLeft.add(flapLeft);
+    giftGroup.add(pivotLeft);
+
+    // Schleifenband um den Korpus, heller Chrom-Ton
     const ribbonMat = new THREE.MeshPhysicalMaterial({
       color: 0xf2f3f5,
       metalness: 1,
@@ -251,13 +279,39 @@
       envMapIntensity: 3.2
     });
 
-    const bandV = new THREE.Mesh(new RoundedBoxGeometry(0.22, 2.1, 2.1, 3, 0.08), ribbonMat);
+    const bandV = new THREE.Mesh(new RoundedBoxGeometry(0.22, 1.7, 2.1, 3, 0.08), ribbonMat);
+    bandV.position.y = -0.3;
     giftGroup.add(bandV);
     const bandH = new THREE.Mesh(new RoundedBoxGeometry(2.58, 0.22, 2.18, 3, 0.08), ribbonMat);
-    bandH.position.y = 0.5;
+    bandH.position.y = -0.15;
     giftGroup.add(bandH);
 
-    // "Schleife" in Form des P1-Schriftzugs oben auf der Box
+    // Licht, das aus der offenen Box strahlt
+    const glowLight = new THREE.PointLight(0x6ee7d8, 3.5, 4, 2);
+    glowLight.position.set(0, 0.55, 0);
+    giftGroup.add(glowLight);
+
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = 128;
+    glowCanvas.height = 128;
+    const gctx = glowCanvas.getContext("2d");
+    const grad = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    grad.addColorStop(0, "rgba(170,245,235,0.95)");
+    grad.addColorStop(0.4, "rgba(110,231,216,0.45)");
+    grad.addColorStop(1, "rgba(110,231,216,0)");
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, 128, 128);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+    const glowMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+    const glowSprite = new THREE.Sprite(glowMat);
+    glowSprite.scale.set(2.2, 2.2, 1);
+    glowSprite.position.set(0, 0.5, 0);
+    giftGroup.add(glowSprite);
+
+    giftGroup.rotation.x = -0.12;
+    giftGroup.scale.setScalar(0.82);
+
+    // P1-Schriftzug schwebt frei über der Öffnung (eigene Gruppe = eigenes Tempo)
     const { FontLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/FontLoader.js");
     const { TextGeometry } = await import("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/geometries/TextGeometry.js");
     const font = await new FontLoader().loadAsync("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json");
@@ -273,11 +327,13 @@
     });
     textGeo.center();
     const textMesh = new THREE.Mesh(textGeo, chromeMat);
-    textMesh.position.set(0, 1.42, 0);
-    giftGroup.add(textMesh);
 
-    giftGroup.rotation.x = -0.12;
-    giftGroup.scale.setScalar(0.82);
+    const p1Group = new THREE.Group();
+    p1Group.add(textMesh);
+    p1Group.rotation.x = -0.12;
+    p1Group.scale.setScalar(0.82);
+    p1Group.position.y = 0.95;
+    scene.add(p1Group);
 
     function resize() {
       const w = stage.clientWidth;
@@ -292,11 +348,17 @@
     window.addEventListener("load", resize);
     setTimeout(resize, 300);
 
-    let t = 0;
+    let boxT = 0;
+    let p1T = 0;
+    let bobT = 0;
     function animate() {
       requestAnimationFrame(animate);
-      t += 0.004;
-      giftGroup.rotation.y = t;
+      boxT += 0.004;
+      p1T += 0.008;
+      bobT += 0.02;
+      giftGroup.rotation.y = boxT;
+      p1Group.rotation.y = p1T;
+      p1Group.position.y = 0.95 + Math.sin(bobT) * 0.12;
       renderer.render(scene, camera);
     }
     animate();
