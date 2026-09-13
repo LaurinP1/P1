@@ -301,6 +301,8 @@
     nameRing.position.y = -0.1;
     giftGroup.add(nameRing);
 
+    let nameTex = null;
+
     (async () => {
       try {
         const names = ["Camillo", "Hancii", "Jeroen", "Sunnyone", "DJ Butter"];
@@ -320,7 +322,7 @@
           ctx.fillText(name, step * i + step / 2, canvas.height / 2);
         });
 
-        const nameTex = new THREE.CanvasTexture(canvas);
+        nameTex = new THREE.CanvasTexture(canvas);
         nameTex.colorSpace = THREE.SRGBColorSpace;
         nameTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         nameTex.wrapS = THREE.RepeatWrapping;
@@ -395,19 +397,22 @@
     window.addEventListener("load", resize);
     setTimeout(resize, 300);
 
-    let boxT = 0;
+    giftGroup.rotation.y = 0.35; // Geschenk steht fest, dreht sich nicht mehr
+
     let p1T = 0;
     let bobT = 0;
     let glowT = 0;
     function animate() {
       requestAnimationFrame(animate);
-      boxT += 0.004;
       p1T += 0.008;
       bobT += 0.02;
       glowT += 0.03;
-      giftGroup.rotation.y = boxT;
       p1Group.rotation.y = p1T;
       p1Group.position.y = 1.25 + Math.sin(bobT) * 0.12;
+
+      if (nameTex) {
+        nameTex.offset.x -= 0.0022;
+      }
 
       const pulse = 0.85 + Math.sin(glowT) * 0.15;
       glowLight.intensity = 5.5 * pulse;
