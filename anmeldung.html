@@ -286,7 +286,7 @@
     giftGroup.add(bandH);
 
     // Goldenes Licht, das aus der geöffneten Box strahlt
-    const glowLight = new THREE.PointLight(0xffc46b, 4, 4.2, 2);
+    const glowLight = new THREE.PointLight(0xff9d2e, 5.5, 4.5, 2);
     glowLight.position.set(0, 0.55, 0);
     giftGroup.add(glowLight);
 
@@ -295,17 +295,50 @@
     glowCanvas.height = 128;
     const gctx = glowCanvas.getContext("2d");
     const grad = gctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    grad.addColorStop(0, "rgba(255,225,170,0.95)");
-    grad.addColorStop(0.4, "rgba(255,190,90,0.5)");
-    grad.addColorStop(1, "rgba(255,190,90,0)");
+    grad.addColorStop(0, "rgba(255,205,110,1)");
+    grad.addColorStop(0.35, "rgba(255,165,50,0.65)");
+    grad.addColorStop(1, "rgba(255,140,20,0)");
     gctx.fillStyle = grad;
     gctx.fillRect(0, 0, 128, 128);
     const glowTex = new THREE.CanvasTexture(glowCanvas);
     const glowMat = new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
     const glowSprite = new THREE.Sprite(glowMat);
-    glowSprite.scale.set(2.3, 2.3, 1);
+    glowSprite.scale.set(2.5, 2.5, 1);
     glowSprite.position.set(0, 0.5, 0);
     giftGroup.add(glowSprite);
+
+    // Lichtstrahlen, die fächerförmig nach oben aus der Öffnung schießen
+    const rayCanvas = document.createElement("canvas");
+    rayCanvas.width = 48;
+    rayCanvas.height = 320;
+    const rctx = rayCanvas.getContext("2d");
+    const rayGrad = rctx.createRadialGradient(24, 320, 0, 24, 320, 320);
+    rayGrad.addColorStop(0, "rgba(255,215,140,0.85)");
+    rayGrad.addColorStop(0.35, "rgba(255,175,70,0.35)");
+    rayGrad.addColorStop(1, "rgba(255,150,40,0)");
+    rctx.fillStyle = rayGrad;
+    rctx.fillRect(0, 0, 48, 320);
+    const rayTex = new THREE.CanvasTexture(rayCanvas);
+
+    const rayGroup = new THREE.Group();
+    const rayCount = 7;
+    const raySprites = [];
+    for (let i = 0; i < rayCount; i++) {
+      const rayMat = new THREE.SpriteMaterial({
+        map: rayTex,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+        rotation: (i - (rayCount - 1) / 2) * 0.42
+      });
+      const raySprite = new THREE.Sprite(rayMat);
+      raySprite.scale.set(0.55, 2.6, 1);
+      raySprite.position.set(0, 1.2, 0);
+      rayGroup.add(raySprite);
+      raySprites.push(raySprite);
+    }
+    rayGroup.position.set(0, 0.5, 0);
+    giftGroup.add(rayGroup);
 
     giftGroup.rotation.x = -0.12;
     giftGroup.scale.setScalar(0.82);
@@ -350,14 +383,24 @@
     let boxT = 0;
     let p1T = 0;
     let bobT = 0;
+    let glowT = 0;
     function animate() {
       requestAnimationFrame(animate);
       boxT += 0.004;
       p1T += 0.008;
       bobT += 0.02;
+      glowT += 0.03;
       giftGroup.rotation.y = boxT;
       p1Group.rotation.y = p1T;
       p1Group.position.y = 1.25 + Math.sin(bobT) * 0.12;
+
+      const pulse = 0.85 + Math.sin(glowT) * 0.15;
+      glowLight.intensity = 5.5 * pulse;
+      glowSprite.scale.set(2.5 * pulse, 2.5 * pulse, 1);
+      raySprites.forEach((s, i) => {
+        s.material.opacity = 0.75 + Math.sin(glowT + i) * 0.25;
+      });
+
       renderer.render(scene, camera);
     }
     animate();
