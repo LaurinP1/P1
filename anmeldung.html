@@ -282,21 +282,22 @@
       envMapIntensity: 2.2
     });
 
-    // Vertikales Band bekommt den Namen "Laurin", ganz dezent (fast weiß auf weiß), laufend
+    // Vertikales Band: Namen laufen dort ebenfalls lang, gut lesbar
+    const vNames = ["Laurin", "Camillo", "Hancii", "Jeroen", "Sunnyone", "DJ Butter"];
     const laurinCanvas = document.createElement("canvas");
     laurinCanvas.width = 200;
     laurinCanvas.height = 1400;
     const lctx = laurinCanvas.getContext("2d");
     lctx.fillStyle = "#ffffff";
     lctx.fillRect(0, 0, laurinCanvas.width, laurinCanvas.height);
-    lctx.fillStyle = "#c9ced6";
-    lctx.font = "600 78px -apple-system, Helvetica, Arial, sans-serif";
+    lctx.fillStyle = "#3a4150";
+    lctx.font = "800 82px -apple-system, Helvetica, Arial, sans-serif";
     lctx.textAlign = "center";
     lctx.textBaseline = "middle";
-    const laurinStep = laurinCanvas.height / 6;
-    for (let i = 0; i < 6; i++) {
-      lctx.fillText("Laurin", laurinCanvas.width / 2, laurinStep * i + laurinStep / 2);
-    }
+    const laurinStep = laurinCanvas.height / vNames.length;
+    vNames.forEach((n, i) => {
+      lctx.fillText(n, laurinCanvas.width / 2, laurinStep * i + laurinStep / 2);
+    });
     const laurinTex = new THREE.CanvasTexture(laurinCanvas);
     laurinTex.colorSpace = THREE.SRGBColorSpace;
     laurinTex.wrapT = THREE.RepeatWrapping;
@@ -346,8 +347,8 @@
         canvas.height = 128;
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#4a5160";
-        ctx.font = "600 40px -apple-system, Helvetica, Arial, sans-serif";
+        ctx.fillStyle = "#3a4150";
+        ctx.font = "800 54px -apple-system, Helvetica, Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const step = canvas.width / names.length;
