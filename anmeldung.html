@@ -293,7 +293,7 @@
     lctx.font = "800 82px -apple-system, Helvetica, Arial, sans-serif";
     lctx.textAlign = "center";
     lctx.textBaseline = "middle";
-    const laurinRepeats = 5;
+    const laurinRepeats = 1;
     const laurinStep = laurinCanvas.height / laurinRepeats;
     for (let i = 0; i < laurinRepeats; i++) {
       lctx.save();
@@ -451,7 +451,7 @@
       if (nameTex) {
         nameTex.offset.x -= 0.0022;
       }
-      laurinTex.offset.y += 0.0014;
+      laurinTex.offset.y += 0.006;
 
       const pulse = 0.85 + Math.sin(glowT) * 0.15;
       glowLight.intensity = 5.5 * pulse;
