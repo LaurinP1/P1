@@ -258,9 +258,9 @@
         var letterWarteschlange = {}; // Buchstabe -> Liste von ids, in Reihenfolge des Erscheinens
         var MAX_PRO_BUCHSTABE = 10;
 
-        var RAUM_TIEFE_VORN = 1;      // z-Bereich vorne (naeher an der Kamera)
-        var RAUM_TIEFE_HINTEN = -2.5; // z-Bereich hinten
-        var SICHTFELD_SICHERHEIT = 0.6; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
+        var RAUM_TIEFE_VORN = 2.2;    // z-Bereich vorne (naeher an der Kamera, wirken groesser)
+        var RAUM_TIEFE_HINTEN = -9;   // z-Bereich hinten (weiter weg, wirken kleiner - echte Tiefenstaffelung)
+        var SICHTFELD_SICHERHEIT = 0.62; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
 
         // Zwei-Zonen-System rund um das P:
         // - KERN: harte Grenze. Naeher darf ein Buchstabe nie kommen, sonst waere
