@@ -109,7 +109,6 @@
     <div class="hintergrundName" style="top: 6%; left: 4%; font-size: 46px; transform: rotate(-8deg);">Hancii</div>
     <div class="hintergrundName" style="top: 26%; right: 4%; font-size: 40px; transform: rotate(6deg);">Jeroen</div>
     <div class="hintergrundName" style="top: 1%; left: 50%; font-size: 40px; transform: translateX(-50%) rotate(-3deg);">Butter</div>
-    <div class="hintergrundName" style="bottom: 20%; left: 4%; font-size: 42px; transform: rotate(5deg);">Sunnyone</div>
     <div class="hintergrundName" style="bottom: 5%; right: 4%; font-size: 38px; transform: rotate(-6deg);">Camillo</div>
 
     <div class="box">
@@ -276,7 +275,7 @@
                 var eased = 1 - Math.pow(1 - verlauf, 2);
                 var skala = 0.001 + (zielSkala - 0.001) * eased;
                 mesh.scale.setScalar(skala);
-                mesh.rotation.y = 0;
+                mesh.rotation.y = (1 - verlauf) * 0.3 + Math.sin(zeit * 0.0025) * 0.18;
 
                 mesh.position.x = startPos.x * (1 - eased);
                 mesh.position.y = startPos.y * (1 - eased);
@@ -306,7 +305,7 @@
 
                     mesh.position.y = eased * 9;
                     mesh.position.z = eased * -6;
-                    mesh.rotation.y = 0;
+                    mesh.rotation.y = Math.sin(zeit * 0.0025) * 0.18;
                     var skala = startSkala * (1 - eased * 0.85);
                     mesh.scale.setScalar(Math.max(skala, 0.01));
                     mesh.material.opacity = 1 - eased;
@@ -369,4 +368,3 @@
 
 </body>
 </html>
-
