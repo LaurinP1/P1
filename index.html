@@ -94,6 +94,7 @@
         kamera.position.set(0, 0, 5);
 
         var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.3;
@@ -145,27 +146,49 @@
             }
         );
 
+        var resizeTimer = null;
         window.addEventListener("resize", function () {
-            kamera.aspect = window.innerWidth / window.innerHeight;
-            kamera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            // Entprellt: bei schnellem Ziehen/Drehen sonst sehr viele teure Neuberechnungen
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(function () {
+                kamera.aspect = window.innerWidth / window.innerHeight;
+                kamera.updateProjectionMatrix();
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }, 120);
         });
 
         // ================== ANIMATIONS-SCHLEIFE ==================
 
+        var letzteZeitMs = null;
+        var animationsZeitSek = 0;   // eigene, geglaettete Uhr fuer die Schwebe-Bewegung
+        var P_ROTATION_PRO_SEK = 0.48; // Bogenmass pro Sekunde (framerate-unabhaengig)
+
         function animiereDreiD(zeitMs) {
             requestAnimationFrame(animiereDreiD);
 
-            if (modell) {
-                modell.rotation.y += 0.008;
+            if (letzteZeitMs === null) {
+                letzteZeitMs = zeitMs || 0;
             }
 
-            aktualisiereSchwebendeBuchstaben((zeitMs || 0) / 1000);
+            // Delta begrenzen: nach einem Tab-Wechsel oder kurzem Haenger
+            // wuerde sonst alles auf einmal vorspringen.
+            var deltaSek = Math.min(((zeitMs || 0) - letzteZeitMs) / 1000, 0.05);
+            letzteZeitMs = zeitMs || 0;
+            animationsZeitSek += deltaSek;
+
+            if (modell) {
+                modell.rotation.y += P_ROTATION_PRO_SEK * deltaSek;
+            }
+
+            aktualisiereSchwebendeBuchstaben(animationsZeitSek, deltaSek);
 
             renderer.render(szene, kamera);
         }
 
-        animiereDreiD(0);
+        requestAnimationFrame(animiereDreiD);
 
         // ================== TEIL 2: DIE BUCHSTABEN (ECHTE 3D-TEXT-OBJEKTE) ==================
 
@@ -238,9 +261,20 @@
         var RAUM_TIEFE_VORN = 1;      // z-Bereich vorne (naeher an der Kamera)
         var RAUM_TIEFE_HINTEN = -2.5; // z-Bereich hinten
         var SICHTFELD_SICHERHEIT = 0.6; // Anteil des sichtbaren Bereichs, der tatsaechlich genutzt wird
-        var ZENTRUM_SICHERHEIT_ANTEIL = 0.34; // Anteil des sichtbaren Bereichs an der jeweiligen Tiefe, der frei vom P bleiben muss
-        var ZENTRUM_PUFFER = 0.5; // zusaetzlicher fester Puffer, damit auch das sanfte Schweben nie ins P hineinreicht
+
+        // Zwei-Zonen-System rund um das P:
+        // - KERN: harte Grenze. Naeher darf ein Buchstabe nie kommen, sonst waere
+        //   er zu mehr als etwa der Haelfte verdeckt bzw. nicht mehr erkennbar.
+        // - WEICH: hier ist eine subtile, gewollte Ueberlagerung erlaubt -
+        //   aber nur voruebergehend (siehe MAX_VERDECKT_SEKUNDEN).
+        var ZENTRUM_KERN_ANTEIL = 0.22;  // harte Grenze, relativ zur sichtbaren Hoehe
+        var ZENTRUM_WEICH_ANTEIL = 0.34; // ab hier beginnt die erlaubte, subtile Ueberlagerung
+        var ZENTRUM_PUFFER = 0.25;
+        var MAX_VERDECKT_SEKUNDEN = 3;   // laenger darf kein Buchstabe teilverdeckt bleiben
+        var HERAUS_GLEITEN_SEKUNDEN = 1.2; // wie sanft er danach wieder hervorkommt
+
         var MINDEST_ABSTAND_BUCHSTABEN = 1.8;
+        var MAX_BUCHSTABEN_GESAMT = 60;  // Performance-Grenze fuer lange Veranstaltungen
 
         function zufallsZahl(min, max) {
             return Math.random() * (max - min) + min;
@@ -256,14 +290,18 @@
             return { halbeBreite: halbeBreite, halbeHoehe: halbeHoehe };
         }
 
-        // Wie weit ein Buchstabe an dieser Tiefe (z) mindestens von der Mitte
-        // (dem P) entfernt sein muss, damit es auf dem Bildschirm nie
-        // ueberschneidet - skaliert mit der Kamera-Perspektive.
-        // "zusatz" ist ein optionaler weiterer Puffer (z.B. die halbe Breite
-        // eines ganzen Namens statt nur eines einzelnen Buchstabens).
-        function mindestAbstandZentrumBeiTiefe(z, zusatz) {
+        // Harte Grenze: naeher darf ein Buchstabe nie an das P heran,
+        // sonst waere er zu stark verdeckt / nicht mehr erkennbar.
+        function kernGrenzeBeiTiefe(z, zusatz) {
             var sichtbar = sichtbareGroesseBeiTiefe(z);
-            return sichtbar.halbeHoehe * ZENTRUM_SICHERHEIT_ANTEIL + ZENTRUM_PUFFER + (zusatz || 0);
+            return sichtbar.halbeHoehe * ZENTRUM_KERN_ANTEIL + ZENTRUM_PUFFER + (zusatz || 0);
+        }
+
+        // Weiche Grenze: ab hier beginnt die bewusst gewollte, subtile
+        // Ueberlagerung - erlaubt, aber zeitlich begrenzt.
+        function weichGrenzeBeiTiefe(z, zusatz) {
+            var sichtbar = sichtbareGroesseBeiTiefe(z);
+            return sichtbar.halbeHoehe * ZENTRUM_WEICH_ANTEIL + ZENTRUM_PUFFER + (zusatz || 0);
         }
 
         function passtPosition3D(x, y, z, bisherige, zusatzAbstand) {
@@ -271,8 +309,10 @@
             // Wichtig: nur x/y zaehlen (Bildschirmebene), nicht die Tiefe (z) -
             // sonst wuerde ein Punkt direkt hinter/vor dem P (x=0, y=0) faelschlich
             // als "weit genug entfernt" gelten, nur weil er in der Tiefe versetzt ist.
+            // Neue Ruhepositionen liegen grundsaetzlich ausserhalb der weichen Zone -
+            // ins Ueberlagerungsgebiet kommt ein Buchstabe nur durch sein Schweben.
             var abstandZurMitte = Math.sqrt(x * x + y * y);
-            if (abstandZurMitte < mindestAbstandZentrumBeiTiefe(z, zusatzAbstand)) {
+            if (abstandZurMitte < weichGrenzeBeiTiefe(z, zusatzAbstand)) {
                 return false;
             }
 
@@ -332,7 +372,9 @@
                 phaseZ: zufallsZahl(0, Math.PI * 2),
                 schwebeGeschwindigkeit: zufallsZahl(0.15, 0.35),
                 schwebeAmplitude: zufallsZahl(0.25, 0.45),
-                spinGeschwindigkeit: zufallsZahl(0.006, 0.014)
+                spinGeschwindigkeit: zufallsZahl(0.36, 0.84), // Bogenmass pro Sekunde
+                verdecktSeit: 0,   // wie lange er schon teilverdeckt hinter dem P liegt
+                herausGleiten: 0   // 0 = normal, 1 = wird gerade sanft hervorgefuehrt
             };
         }
 
@@ -354,13 +396,20 @@
                     startZeit = zeit;
                 }
                 var verlauf = Math.min((zeit - startZeit) / dauer, 1);
-                var skala = startSkala * (1 - verlauf);
+                // weiches Ausblenden statt linearem Schrumpfen
+                var geglaettet = verlauf * verlauf * (3 - 2 * verlauf);
+                var skala = startSkala * (1 - geglaettet);
                 mesh.scale.setScalar(Math.max(skala, 0.0001));
 
                 if (verlauf < 1) {
                     requestAnimationFrame(schrumpfen);
                 } else {
                     szene.remove(mesh);
+                    // Grafikspeicher freigeben - sonst waechst der Verbrauch
+                    // bei langen Veranstaltungen immer weiter an.
+                    if (mesh.geometry) {
+                        mesh.geometry.dispose();
+                    }
                 }
             }
             requestAnimationFrame(schrumpfen);
@@ -377,9 +426,42 @@
                 letterWarteschlange[buchstabe] = [];
             }
 
+            // Grenze pro Buchstabe (z.B. maximal 10 mal "A")
             while (letterWarteschlange[buchstabe].length >= MAX_PRO_BUCHSTABE) {
                 var aeltesteId = letterWarteschlange[buchstabe].shift();
                 entferneBuchstabenObjekt(aeltesteId);
+            }
+
+            // Gesamtgrenze ueber alle Buchstaben hinweg: haelt die Komposition
+            // ruhig und die Bildrate auch bei sehr vielen Gaesten stabil.
+            var gesamt = Object.keys(buchstabenObjekte).length;
+            while (gesamt >= MAX_BUCHSTABEN_GESAMT) {
+
+                var aeltesteGesamtId = null;
+                for (var vorhandeneId in buchstabenObjekte) {
+                    if (aeltesteGesamtId === null || Number(vorhandeneId) < Number(aeltesteGesamtId)) {
+                        aeltesteGesamtId = vorhandeneId;
+                    }
+                }
+
+                if (aeltesteGesamtId === null) {
+                    break;
+                }
+
+                // auch aus der Buchstaben-Warteschlange entfernen
+                var textDesAeltesten = buchstabenText[aeltesteGesamtId];
+                if (textDesAeltesten && letterWarteschlange[textDesAeltesten]) {
+                    var stelle = letterWarteschlange[textDesAeltesten].indexOf(aeltesteGesamtId);
+                    if (stelle === -1) {
+                        stelle = letterWarteschlange[textDesAeltesten].indexOf(Number(aeltesteGesamtId));
+                    }
+                    if (stelle !== -1) {
+                        letterWarteschlange[textDesAeltesten].splice(stelle, 1);
+                    }
+                }
+
+                entferneBuchstabenObjekt(aeltesteGesamtId);
+                gesamt -= 1;
             }
         }
 
@@ -420,7 +502,7 @@
             }
         }
 
-        function aktualisiereSchwebendeBuchstaben(zeitSek) {
+        function aktualisiereSchwebendeBuchstaben(zeitSek, deltaSek) {
 
             for (var id in buchstabenObjekte) {
 
@@ -438,18 +520,44 @@
                 var y = daten.y + dy;
                 var z = daten.z + dz;
 
-                // Laufende Sicherung: falls das Schweben den Buchstaben zu nah
-                // ans P bringen wuerde, sanft nach aussen schieben.
-                var mindestAbstand = mindestAbstandZentrumBeiTiefe(z);
                 var abstandZurMitte = Math.sqrt(x * x + y * y);
-                if (abstandZurMitte < mindestAbstand && abstandZurMitte > 0.0001) {
-                    var faktor = mindestAbstand / abstandZurMitte;
+                var kernGrenze = kernGrenzeBeiTiefe(z);
+                var weichGrenze = weichGrenzeBeiTiefe(z);
+
+                // 1) Harte Grenze: nie naeher als der Kern - so bleibt immer
+                //    ein klarer Teil des Buchstabens sichtbar.
+                if (abstandZurMitte < kernGrenze && abstandZurMitte > 0.0001) {
+                    var faktor = kernGrenze / abstandZurMitte;
                     x *= faktor;
                     y *= faktor;
+                    abstandZurMitte = kernGrenze;
+                }
+
+                // 2) Weiche Zone: subtile Ueberlagerung ist gewollt,
+                //    aber nur bis zu MAX_VERDECKT_SEKUNDEN am Stueck.
+                if (abstandZurMitte < weichGrenze) {
+                    daten.verdecktSeit += deltaSek;
+                } else {
+                    daten.verdecktSeit = 0;
+                    daten.herausGleiten = Math.max(0, daten.herausGleiten - deltaSek / HERAUS_GLEITEN_SEKUNDEN);
+                }
+
+                if (daten.verdecktSeit > MAX_VERDECKT_SEKUNDEN) {
+                    daten.herausGleiten = Math.min(1, daten.herausGleiten + deltaSek / HERAUS_GLEITEN_SEKUNDEN);
+                }
+
+                // Sanftes Hervorkommen: der Buchstabe wird weich nach aussen
+                // gefuehrt, bis er wieder eindeutig sichtbar ist.
+                if (daten.herausGleiten > 0 && abstandZurMitte > 0.0001) {
+                    var geglaettet = daten.herausGleiten * daten.herausGleiten * (3 - 2 * daten.herausGleiten);
+                    var zielAbstand = abstandZurMitte + (weichGrenze - abstandZurMitte) * geglaettet;
+                    var schub = zielAbstand / abstandZurMitte;
+                    x *= schub;
+                    y *= schub;
                 }
 
                 mesh.position.set(x, y, z);
-                mesh.rotation.y += daten.spinGeschwindigkeit;
+                mesh.rotation.y += daten.spinGeschwindigkeit * deltaSek;
             }
         }
 
@@ -493,7 +601,55 @@
             return { gruppe: gruppe, kinder: kinder, breite: gesamtBreite };
         }
 
+        // Wenn mehrere Gaeste gleichzeitig abschicken, sollen die Namen nicht
+        // uebereinander liegen - sie werden nacheinander eingeflogen.
+        var einflugWarteschlange = [];
+        var einflugLaeuft = false;
+        var EINFLUG_ABSTAND_MS = 1400;
+
         function starteEinflug(eintrag) {
+
+            // Ungueltige oder unvollstaendige Eintraege ignorieren, statt
+            // die Projektor-Seite damit zum Stolpern zu bringen.
+            if (!eintrag || !eintrag.id || !eintrag.Buchstabe) {
+                return;
+            }
+
+            var id = eintrag.id;
+
+            if (positionen[id] || flugAktiv[id]) {
+                return;
+            }
+
+            // schon vorgemerkt? dann nicht doppelt einreihen
+            for (var i = 0; i < einflugWarteschlange.length; i++) {
+                if (einflugWarteschlange[i].id === id) {
+                    return;
+                }
+            }
+
+            einflugWarteschlange.push(eintrag);
+            arbeiteEinflugWarteschlangeAb();
+        }
+
+        function arbeiteEinflugWarteschlangeAb() {
+
+            if (einflugLaeuft || einflugWarteschlange.length === 0) {
+                return;
+            }
+
+            einflugLaeuft = true;
+            var naechster = einflugWarteschlange.shift();
+
+            fuehreEinflugAus(naechster);
+
+            setTimeout(function () {
+                einflugLaeuft = false;
+                arbeiteEinflugWarteschlangeAb();
+            }, EINFLUG_ABSTAND_MS);
+        }
+
+        function fuehreEinflugAus(eintrag) {
 
             var id = eintrag.id;
             var vollerName = eintrag.Name || eintrag.Buchstabe;
@@ -699,30 +855,94 @@
 
         schriftartAusfuehrenSobaldBereit(function () {
 
-            supabaseClient
-                .from("Buchstaben")
-                .select("*")
-                .order("id", { ascending: true })
-                .then(function (response) {
+            var hoechsteGeseheneId = 0;
 
-                    if (response.error) {
-                        console.error("SUPABASE FEHLER:", response.error);
-                        return;
+            function merkeHoechsteId(liste) {
+                for (var i = 0; i < liste.length; i++) {
+                    if (Number(liste[i].id) > hoechsteGeseheneId) {
+                        hoechsteGeseheneId = Number(liste[i].id);
                     }
+                }
+            }
 
-                    platziereOhneEinflug(response.data);
-                });
+            // Erstes Laden - mit erneutem Versuch, falls die Verbindung
+            // beim Start der Veranstaltung noch nicht steht.
+            function ladeBestand(versuch) {
 
+                supabaseClient
+                    .from("Buchstaben")
+                    .select("*")
+                    .order("id", { ascending: true })
+                    .then(function (response) {
+
+                        if (response.error) {
+                            console.error("SUPABASE FEHLER beim Laden:", response.error);
+                            if ((versuch || 1) < 5) {
+                                setTimeout(function () {
+                                    ladeBestand((versuch || 1) + 1);
+                                }, 3000);
+                            }
+                            return;
+                        }
+
+                        merkeHoechsteId(response.data);
+                        platziereOhneEinflug(response.data);
+                    });
+            }
+
+            ladeBestand(1);
+
+            // Live-Updates
             supabaseClient
                 .channel("buchstaben-live")
                 .on(
                     "postgres_changes",
                     { event: "INSERT", schema: "public", table: "Buchstaben" },
                     function (payload) {
-                        starteEinflug(payload.new);
+                        try {
+                            if (payload && payload.new) {
+                                if (Number(payload.new.id) > hoechsteGeseheneId) {
+                                    hoechsteGeseheneId = Number(payload.new.id);
+                                }
+                                starteEinflug(payload.new);
+                            }
+                        } catch (fehler) {
+                            // Ein einzelner fehlerhafter Eintrag darf die
+                            // Projektor-Seite niemals zum Stehen bringen.
+                            console.error("Fehler beim Verarbeiten eines Buchstabens:", fehler);
+                        }
                     }
                 )
-                .subscribe();
+                .subscribe(function (status) {
+                    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+                        console.warn("Realtime-Verbindung gestoert:", status);
+                    }
+                });
+
+            // Sicherheitsnetz: falls die Live-Verbindung kurz weg war, werden
+            // verpasste Buchstaben regelmaessig nachgeholt. So fehlt selbst bei
+            // einem kurzen Netzausfall am Ende kein Gast auf der Leinwand.
+            setInterval(function () {
+
+                supabaseClient
+                    .from("Buchstaben")
+                    .select("*")
+                    .gt("id", hoechsteGeseheneId)
+                    .order("id", { ascending: true })
+                    .then(function (response) {
+
+                        if (response.error || !response.data || response.data.length === 0) {
+                            return;
+                        }
+
+                        merkeHoechsteId(response.data);
+
+                        for (var i = 0; i < response.data.length; i++) {
+                            starteEinflug(response.data[i]);
+                        }
+                    });
+
+            }, 15000);
         });
 
     </script>
