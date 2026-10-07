@@ -264,23 +264,42 @@
         }
 
         // ---- Die kleine Chrome-1 unter dem Bauch des P (ergibt "P1") ----
-        // Gleiches Material und gleicher Stil wie die schwebenden Buchstaben.
         //
-        // Das P ist nach dem Skalieren 1.9 hoch und ca. 1.43 breit, mittig um
-        // den Nullpunkt. Der Stamm sitzt links, der Bauch oben rechts - unter
-        // dem Bauch bleibt rechts vom Stamm eine Luecke frei. Genau dort sitzt
-        // die 1. Weil sie im einsPivot haengt und der Pivot in der Drehachse
-        // des P steht, wandert die 1 beim Drehen mit nach vorne und hinten.
+        // Gleiches Material, gleiche Schrift und gleiche Proportionen wie die
+        // schwebenden Buchstaben.
+        //
+        // Die Zahlen stammen aus dem echten 3D-Modell (nach dem Skalieren auf
+        // 1.9 Hoehe, mittig um den Nullpunkt):
+        //   Stamm des P:        x von -0.716 bis -0.227
+        //   Unterkante Bauch:   y = -0.3155
+        //   Grundlinie des P:   y = -0.95
+        // Darunter, rechts vom Stamm, ist die Flaeche komplett frei. Genau dort
+        // sitzt die 1 - mit etwas Luft unter dem Bauch und auf derselben
+        // Grundlinie wie das P, damit beide als ein Zeichen gelesen werden.
 
-        var EINS_GROESSE = 0.50;   // Hoehe der 1 (das P ist 1.9 hoch)
-        var EINS_X = 0.12;         // nach rechts, in die Luecke unter dem Bauch
-        var EINS_Y = -0.47;        // nach unten, unter den Bauch
-        var EINS_Z = 0;            // Tiefe, mittig in der Dicke des P
+        var EINS_X     =  0.10;   // waagerechte Position unter dem Bauch
+        var EINS_OBEN  = -0.40;   // Oberkante der 1 (Bauch endet bei -0.3155)
+        var EINS_UNTEN = -0.95;   // Unterkante der 1 = Grundlinie des P
 
         schriftartAusfuehrenSobaldBereit(function () {
 
-            einsMesh = erzeugeTextMesh("1", EINS_GROESSE);
-            einsMesh.position.set(EINS_X, EINS_Y, EINS_Z);
+            // Die Rohgroesse einer Ziffer haengt von der Schriftart ab, deshalb
+            // wird sie hier gemessen statt geschaetzt: erst mit Groesse 1 bauen,
+            // dann exakt auf die gewuenschte Hoehe skalieren. So steckt die 1
+            // garantiert nicht im Bauch des P.
+
+            einsMesh = erzeugeTextMesh("1", 1);
+
+            einsMesh.geometry.computeBoundingBox();
+            var kasten = einsMesh.geometry.boundingBox;
+            var rohHoehe = kasten.max.y - kasten.min.y;
+
+            if (rohHoehe > 0) {
+                einsMesh.scale.setScalar((EINS_OBEN - EINS_UNTEN) / rohHoehe);
+            }
+
+            // Die Geometrie ist zentriert, also auf die Mitte der Zielhoehe setzen.
+            einsMesh.position.set(EINS_X, (EINS_OBEN + EINS_UNTEN) / 2, 0);
 
             einsPivot = new THREE.Group();   // steht im Nullpunkt = Drehachse des P
             einsPivot.add(einsMesh);
