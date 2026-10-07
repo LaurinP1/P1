@@ -113,6 +113,7 @@
 
         var lader = new GLTFLoader();
         var modell = null;
+        var einsMesh = null;   // die kleine Chrome-1 unter dem P (fuer "P1")
 
         lader.load(
             "p-metallic.glb",
@@ -183,6 +184,12 @@
                 modell.rotation.y += P_ROTATION_PRO_SEK * deltaSek;
             }
 
+            // Die kleine 1 dreht sich genau synchron zum P,
+            // damit P und 1 wie ein zusammengehoeriges Zeichen wirken.
+            if (einsMesh) {
+                einsMesh.rotation.y += P_ROTATION_PRO_SEK * deltaSek;
+            }
+
             aktualisiereSchwebendeBuchstaben(animationsZeitSek, deltaSek);
 
             renderer.render(szene, kamera);
@@ -247,6 +254,18 @@
             geometrie.center();
             return new THREE.Mesh(geometrie, chromeMaterialBuchstaben);
         }
+
+        // ---- Die kleine Chrome-1 unter dem P (ergibt zusammen "P1") ----
+        // Gleiches Material und gleicher Stil wie die schwebenden Buchstaben.
+
+        var EINS_GROESSE = 0.52;   // Hoehe der 1 (das P ist 1.9 hoch)
+        var EINS_Y = -1.32;        // wie weit unter der Mitte sie sitzt
+
+        schriftartAusfuehrenSobaldBereit(function () {
+            einsMesh = erzeugeTextMesh("1", EINS_GROESSE);
+            einsMesh.position.set(0, EINS_Y, 0);
+            szene.add(einsMesh);
+        });
 
         // ---- Positionierung im 3D-Raum ----
 
