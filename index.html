@@ -116,8 +116,6 @@
 
         var lader = new GLTFLoader();
         var modell = null;
-        var pHalbeBreite = 0.7;   // werden nach dem Laden des P genau gemessen
-        var pHalbeHoehe = 0.95;
 
         lader.load(
             "p-metallic.glb",
@@ -144,13 +142,6 @@
                         kind.material.envMapIntensity = 2.2;
                     }
                 });
-
-                // Echte Groesse des P merken - die Uhrzeit haelt davon Abstand
-                var pBox = new THREE.Box3().setFromObject(modell);
-                var pGroesse = new THREE.Vector3();
-                pBox.getSize(pGroesse);
-                pHalbeBreite = Math.sqrt(pGroesse.x * pGroesse.x + pGroesse.z * pGroesse.z) / 2; // auch schraeg gedreht
-                pHalbeHoehe = pGroesse.y / 2;
             },
             undefined,
             function (fehler) {
@@ -196,7 +187,6 @@
             }
 
             aktualisiereSchwebendeBuchstaben(animationsZeitSek, deltaSek);
-            aktualisiereUhrzeit(animationsZeitSek, deltaSek);
 
             renderer.render(szene, kamera);
         }
@@ -612,92 +602,6 @@
             }
 
             return { gruppe: gruppe, kinder: kinder, breite: gesamtBreite };
-        }
-
-        // ================== DIE UHRZEIT "21:30 Uhr" ==================
-        // Dauerhaft da, gleiche Chrom-Buchstaben und gleiche Groesse wie die Namen.
-        // Sie zieht ruhig auf einer Bahn um das P herum, bleibt immer lesbar
-        // zur Kamera gedreht und haelt Abstand, damit sie das P nie verdeckt.
-
-        var UHRZEIT_TEXT = "21:30 Uhr";
-        var UHRZEIT_RUNDE_SEK = 45;      // so lange dauert eine Runde um das P
-        var UHRZEIT_RAND = 0.35;         // Luft zwischen Uhrzeit und P
-        var uhrzeit = null;              // { gruppe, halbeBreite, halbeHoehe, z }
-
-        schriftartAusfuehrenSobaldBereit(function () {
-            var aufbau = erzeugeNameGruppe(UHRZEIT_TEXT, 0.7);
-            var box = new THREE.Box3().setFromObject(aufbau.gruppe);
-            var groesse = new THREE.Vector3();
-            box.getSize(groesse);
-            uhrzeit = {
-                gruppe: aufbau.gruppe,
-                halbeBreite: groesse.x / 2,
-                halbeHoehe: groesse.y / 2,
-                z: null
-            };
-            szene.add(aufbau.gruppe);
-        });
-
-        function aktualisiereUhrzeit(zeitSek, deltaSek) {
-
-            if (!uhrzeit) {
-                return;
-            }
-
-            var tanHalb = Math.tan((kamera.fov * Math.PI) / 360);
-            var aspekt = kamera.aspect;
-            var kameraZ = kamera.position.z;
-            var hb = uhrzeit.halbeBreite;
-            var hh = uhrzeit.halbeHoehe;
-
-            // Passende Tiefe: so weit hinten, dass die Uhrzeit links und rechts
-            // NEBEN das P passt und trotzdem ganz im Bild bleibt.
-            // (Abstand D zur Kamera; das P steht bei D = kameraZ.)
-            var nennerSeite = 0.94 * tanHalb * aspekt - pHalbeBreite / kameraZ;
-            var dSeite = nennerSeite > 0.05 ? (2 * hb + UHRZEIT_RAND + 0.8) / nennerSeite : 14;   // + etwas Spielraum
-            var nennerHoehe = 0.9 * tanHalb - pHalbeHoehe / kameraZ;
-            var dHoehe = nennerHoehe > 0.05 ? (2 * hh + UHRZEIT_RAND) / nennerHoehe : 14;
-            var zielD = Math.min(Math.max(dSeite, dHoehe, 8), 17);
-            var zielZ = kameraZ - zielD;
-
-            if (uhrzeit.z === null) {
-                uhrzeit.z = zielZ;
-            }
-            uhrzeit.z += (zielZ - uhrzeit.z) * Math.min(1, deltaSek * 2); // weich bei Fenster-Aenderung
-            var D = kameraZ - uhrzeit.z;
-
-            // Grenzen der Bahn in dieser Tiefe
-            var sichtHalbB = tanHalb * D * aspekt;
-            var sichtHalbH = tanHalb * D;
-            var pB = pHalbeBreite * D / kameraZ;   // so breit wirkt das P in dieser Tiefe
-            var pH = pHalbeHoehe * D / kameraZ;
-
-            var aMin = pB + hb + UHRZEIT_RAND, aMax = 0.94 * sichtHalbB - hb;
-            var bMin = pH + hh + UHRZEIT_RAND, bMax = 0.9 * sichtHalbH - hh;
-            var A = aMax > aMin ? (aMin + aMax) / 2 : aMax;
-            var B = Math.min(bMax, bMin * 1.2 + 0.15);   // oben/unten mit Luft, auch in den Ecken
-
-            // Ruhige Bahn: abgerundetes Rechteck um das P (an den Ecken etwas
-            // weiter aussen, damit die lange Uhrzeit nie die P-Ecken streift)
-            var winkel = (zeitSek / UHRZEIT_RUNDE_SEK) * Math.PI * 2 + 0.6;
-            var ecke = 1 + 0.2 * Math.pow(Math.sin(2 * winkel), 2);
-            var x = Math.cos(winkel) * A * ecke;
-            var y = Math.sin(winkel) * B * ecke;
-
-            // sanftes Schweben
-            y += Math.sin(zeitSek * 0.7) * 0.12;
-            var z = uhrzeit.z + Math.sin(zeitSek * 0.45) * 0.35;
-
-            // Sicherheitsnetz: immer ganz im Bild
-            x = Math.max(-aMax, Math.min(aMax, x));
-            y = Math.max(-bMax, Math.min(bMax, y));
-
-            uhrzeit.gruppe.position.set(x, y, z);
-
-            // leichtes Wiegen fuer die Chrom-Reflexe - bleibt immer lesbar
-            uhrzeit.gruppe.rotation.y = Math.sin(zeitSek * 0.45) * 0.22;
-            uhrzeit.gruppe.rotation.x = Math.sin(zeitSek * 0.37) * 0.06;
-            uhrzeit.gruppe.rotation.z = Math.sin(zeitSek * 0.3) * 0.03;
         }
 
         // Wenn mehrere Gaeste gleichzeitig abschicken, sollen die Namen nicht
