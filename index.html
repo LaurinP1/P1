@@ -49,6 +49,41 @@
             font-weight: bold;
             color: #222;
         }
+
+        /* Vollbild-Knopf oben rechts: dezent, verschwindet bei Ruhe und im Vollbild */
+        #vollbildKnopf {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 40;
+
+            padding: 12px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.10);
+            color: white;
+
+            font-family: Arial, sans-serif;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+
+            transition: opacity 0.6s;
+        }
+
+        #vollbildKnopf:hover {
+            background: rgba(255, 255, 255, 0.22);
+        }
+
+        #vollbildKnopf.versteckt {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Mauszeiger ausblenden, wenn er eine Weile nicht bewegt wurde */
+        body.mausRuhig {
+            cursor: none;
+        }
     </style>
 </head>
 
@@ -60,6 +95,8 @@
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=https%3A%2F%2Flaurinp1.github.io%2FP1%2Fgast.html" alt="QR-Code zur Gast-Seite">
         <span>Scan mich</span>
     </div>
+
+    <button id="vollbildKnopf" type="button">Vollbild</button>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -113,9 +150,6 @@
 
         var lader = new GLTFLoader();
         var modell = null;
-        var einsMesh = null;   // die kleine Chrome-1 unter dem P-Bauch (fuer "P1")
-        var einsPivot = null;  // Drehhalterung: sitzt in der Drehachse des P,
-                               // damit die 1 mit dem P mitschwingt
 
         lader.load(
             "p-metallic.glb",
@@ -186,18 +220,6 @@
                 modell.rotation.y += P_ROTATION_PRO_SEK * deltaSek;
             }
 
-            // Die 1 haengt an derselben Drehachse wie das P: sie dreht sich
-            // nicht an ihrem Platz, sondern schwingt mit dem P mit - als waere
-            // sie ein festes Teil des Zeichens. Der Winkel wird direkt vom P
-            // uebernommen, damit beide nie auseinanderlaufen koennen.
-            if (einsPivot) {
-                if (modell) {
-                    einsPivot.rotation.y = modell.rotation.y;
-                } else {
-                    einsPivot.rotation.y += P_ROTATION_PRO_SEK * deltaSek;
-                }
-            }
-
             aktualisiereSchwebendeBuchstaben(animationsZeitSek, deltaSek);
 
             renderer.render(szene, kamera);
@@ -262,49 +284,6 @@
             geometrie.center();
             return new THREE.Mesh(geometrie, chromeMaterialBuchstaben);
         }
-
-        // ---- Die kleine Chrome-1 unter dem Bauch des P (ergibt "P1") ----
-        //
-        // Gleiches Material, gleiche Schrift und gleiche Proportionen wie die
-        // schwebenden Buchstaben.
-        //
-        // Die Zahlen stammen aus dem echten 3D-Modell (nach dem Skalieren auf
-        // 1.9 Hoehe, mittig um den Nullpunkt):
-        //   Stamm des P:        x von -0.716 bis -0.227
-        //   Unterkante Bauch:   y = -0.3155
-        //   Grundlinie des P:   y = -0.95
-        // Darunter, rechts vom Stamm, ist die Flaeche komplett frei. Genau dort
-        // sitzt die 1 - mit etwas Luft unter dem Bauch und auf derselben
-        // Grundlinie wie das P, damit beide als ein Zeichen gelesen werden.
-
-        var EINS_X     =  0.10;   // waagerechte Position unter dem Bauch
-        var EINS_OBEN  = -0.40;   // Oberkante der 1 (Bauch endet bei -0.3155)
-        var EINS_UNTEN = -0.95;   // Unterkante der 1 = Grundlinie des P
-
-        schriftartAusfuehrenSobaldBereit(function () {
-
-            // Die Rohgroesse einer Ziffer haengt von der Schriftart ab, deshalb
-            // wird sie hier gemessen statt geschaetzt: erst mit Groesse 1 bauen,
-            // dann exakt auf die gewuenschte Hoehe skalieren. So steckt die 1
-            // garantiert nicht im Bauch des P.
-
-            einsMesh = erzeugeTextMesh("1", 1);
-
-            einsMesh.geometry.computeBoundingBox();
-            var kasten = einsMesh.geometry.boundingBox;
-            var rohHoehe = kasten.max.y - kasten.min.y;
-
-            if (rohHoehe > 0) {
-                einsMesh.scale.setScalar((EINS_OBEN - EINS_UNTEN) / rohHoehe);
-            }
-
-            // Die Geometrie ist zentriert, also auf die Mitte der Zielhoehe setzen.
-            einsMesh.position.set(EINS_X, (EINS_OBEN + EINS_UNTEN) / 2, 0);
-
-            einsPivot = new THREE.Group();   // steht im Nullpunkt = Drehachse des P
-            einsPivot.add(einsMesh);
-            szene.add(einsPivot);
-        });
 
         // ---- Positionierung im 3D-Raum ----
 
@@ -1003,6 +982,88 @@
             }, 15000);
         });
 
+    </script>
+
+    <script>
+        // ---------- Vollbild ----------
+        // Browser erlauben Vollbild nur nach einem Klick oder Tastendruck.
+        // Deshalb: Knopf "Vollbild", ODER irgendwo auf die Seite klicken, ODER Taste F.
+        // Mit ESC kommt man wieder heraus.
+
+        var vollbildKnopf = document.getElementById("vollbildKnopf");
+
+        function istVollbild() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement);
+        }
+
+        function vollbildAn() {
+            var el = document.documentElement;
+            if (el.requestFullscreen) {
+                el.requestFullscreen().catch(function () {});
+            } else if (el.webkitRequestFullscreen) {
+                el.webkitRequestFullscreen();
+            }
+        }
+
+        function vollbildAus() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(function () {});
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+
+        function knopfAktualisieren() {
+            if (istVollbild()) {
+                vollbildKnopf.classList.add("versteckt");
+            } else {
+                vollbildKnopf.classList.remove("versteckt");
+            }
+        }
+
+        vollbildKnopf.addEventListener("click", function (e) {
+            e.stopPropagation();
+            vollbildAn();
+        });
+
+        // Ein Klick irgendwo auf die Seite startet ebenfalls das Vollbild
+        document.addEventListener("click", function () {
+            if (!istVollbild()) {
+                vollbildAn();
+            }
+        });
+
+        // Taste F schaltet Vollbild an und aus
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "f" || e.key === "F") {
+                if (istVollbild()) {
+                    vollbildAus();
+                } else {
+                    vollbildAn();
+                }
+            }
+        });
+
+        document.addEventListener("fullscreenchange", knopfAktualisieren);
+        document.addEventListener("webkitfullscreenchange", knopfAktualisieren);
+
+        // Mauszeiger und Knopf nach 3 Sekunden ohne Bewegung ausblenden
+        var mausTimer = null;
+        function mausBewegt() {
+            document.body.classList.remove("mausRuhig");
+            if (!istVollbild()) {
+                vollbildKnopf.classList.remove("versteckt");
+            }
+            clearTimeout(mausTimer);
+            mausTimer = setTimeout(function () {
+                document.body.classList.add("mausRuhig");
+                if (!istVollbild()) {
+                    vollbildKnopf.classList.add("versteckt");
+                }
+            }, 3000);
+        }
+        document.addEventListener("mousemove", mausBewegt);
+        mausBewegt();
     </script>
 
 </body>
